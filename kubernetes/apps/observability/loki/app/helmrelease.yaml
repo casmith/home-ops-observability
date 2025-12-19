@@ -23,8 +23,8 @@ spec:
     remediation:
       retries: 3
   values:
-    # Deployment mode: SimpleScalable (read, write, backend components)
-    deploymentMode: SimpleScalable
+    # Deployment mode: SingleBinary (simpler, works with filesystem storage)
+    deploymentMode: SingleBinary
 
     loki:
       # Authentication
@@ -41,17 +41,6 @@ spec:
               prefix: loki_index_
               period: 24h
 
-      # Ingester configuration
-      ingester:
-        chunk_encoding: snappy
-        chunk_retain_period: 1m
-
-      # Limits
-      limits_config:
-        retention_period: 90d
-        max_query_series: 100000
-        max_query_lookback: 90d
-
       # Storage
       storage:
         type: filesystem
@@ -60,37 +49,27 @@ spec:
       compactor:
         retention_enabled: true
         delete_request_store: filesystem
+        working_directory: /var/loki/compactor
 
-    # Component configurations
-    write:
-      replicas: 2
-      persistence:
-        enabled: true
-        storageClass: nfs-client
-        size: 100Gi
+      # Limits
+      limits_config:
+        retention_period: 90d
+        max_query_series: 100000
+        max_query_lookback: 90d
 
-    read:
-      replicas: 2
-      persistence:
-        enabled: true
-        storageClass: nfs-client
-        size: 100Gi
-
-    backend:
-      replicas: 2
-      persistence:
-        enabled: true
-        storageClass: nfs-client
-        size: 100Gi
-
-    # Single binary for chunks storage
+    # Single binary configuration
     singleBinary:
-      replicas: 0
-
-    # Gateway (NGINX)
-    gateway:
-      enabled: true
-      replicas: 1
+      replicas: 2
+      persistence:
+        enabled: true
+        storageClass: nfs-client
+        size: 200Gi
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          memory: 1Gi
 
     # Monitoring
     monitoring:
