@@ -1,1 +1,248 @@
-{{ (fromYaml (readFile (printf "../../../kubernetes/apps/%s/%s/app/helmrelease.yaml" .Release.Namespace .Release.Name))).spec.values | toYaml }}
+{{- if eq .Release.Name "cilium" -}}
+autoDirectNodeRoutes: true
+bpf:
+  masquerade: true
+  hostLegacyRouting: true
+cni:
+  exclusive: false
+cgroup:
+  automount:
+    enabled: false
+  hostRoot: /sys/fs/cgroup
+dashboards:
+  enabled: true
+endpointRoutes:
+  enabled: true
+envoy:
+  rollOutPods: true
+  prometheus:
+    serviceMonitor:
+      enabled: true
+gatewayAPI:
+  enabled: true
+hubble:
+  enabled: false
+ipam:
+  mode: kubernetes
+ipv4NativeRoutingCIDR: "10.52.0.0/16"
+k8sServiceHost: 127.0.0.1
+k8sServicePort: 7445
+kubeProxyReplacement: true
+kubeProxyReplacementHealthzBindAddr: 0.0.0.0:10256
+l2announcements:
+  enabled: true
+loadBalancer:
+  algorithm: maglev
+  mode: "dsr"
+localRedirectPolicy: true
+operator:
+  dashboards:
+    enabled: true
+  prometheus:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+  replicas: 1
+  rollOutPods: true
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    trustCRDsExist: true
+rollOutCiliumPods: true
+routingMode: native
+securityContext:
+  capabilities:
+    ciliumAgent:
+      - CHOWN
+      - KILL
+      - NET_ADMIN
+      - NET_RAW
+      - IPC_LOCK
+      - SYS_ADMIN
+      - SYS_RESOURCE
+      - PERFMON
+      - BPF
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    cleanCiliumState:
+      - NET_ADMIN
+      - SYS_ADMIN
+      - SYS_RESOURCE
+socketLB:
+  hostNamespaceOnly: true
+{{- else if eq .Release.Name "coredns" -}}
+fullnameOverride: coredns
+image:
+  repository: mirror.gcr.io/coredns/coredns
+k8sAppLabelOverride: kube-dns
+serviceAccount:
+  create: true
+service:
+  name: kube-dns
+  clusterIP: "10.53.0.10"
+replicaCount: 2
+servers:
+  - zones:
+      - zone: .
+        scheme: dns://
+        use_tcp: true
+    port: 53
+    plugins:
+      - name: errors
+      - name: health
+        configBlock: |-
+          lameduck 5s
+      - name: ready
+      - name: kubernetes
+        parameters: cluster.local in-addr.arpa ip6.arpa
+        configBlock: |-
+          pods verified
+          fallthrough in-addr.arpa ip6.arpa
+      - name: autopath
+        parameters: "@kubernetes"
+      - name: forward
+        parameters: . /etc/resolv.conf
+      - name: cache
+        configBlock: |-
+          prefetch 20
+          serve_stale
+      - name: loop
+      - name: reload
+      - name: loadbalance
+      - name: prometheus
+        parameters: 0.0.0.0:9153
+      - name: log
+        configBlock: |-
+          class error
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+{{- else if eq .Release.Name "spegel" -}}
+spegel:
+  containerdSock: /run/containerd/containerd.sock
+  containerdRegistryConfigPath: /etc/cri/conf.d/hosts
+service:
+  registry:
+    hostPort: 29999
+serviceMonitor:
+  enabled: true
+{{- else if eq .Release.Name "cert-manager" -}}
+crds:
+  enabled: true
+replicaCount: 1
+dns01RecursiveNameservers: https://1.1.1.1:443/dns-query,https://1.0.0.1:443/dns-query
+dns01RecursiveNameserversOnly: true
+prometheus:
+  enabled: true
+  servicemonitor:
+    enabled: true
+{{- else if eq .Release.Name "flux-operator" -}}
+serviceMonitor:
+  create: true
+{{- else if eq .Release.Name "flux-instance" -}}
+instance:
+  distribution:
+    version: 2.7.5
+  cluster:
+    networkPolicy: false
+  components:
+    - source-controller
+    - kustomize-controller
+    - helm-controller
+    - notification-controller
+  sync:
+    kind: GitRepository
+    url: "https://github.com/casmith/home-ops-observability.git"
+    ref: "refs/heads/main"
+    path: kubernetes/flux/cluster
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: flux
+  kustomize:
+    patches:
+      - patch: |
+          - op: add
+            path: /spec/template/spec/containers/0/args/-
+            value: --concurrent=10
+          - op: add
+            path: /spec/template/spec/containers/0/args/-
+            value: --requeue-dependency=5s
+        target:
+          kind: Deployment
+          name: (kustomize-controller|helm-controller|source-controller)
+      - patch: |
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: all
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: manager
+                    resources:
+                      limits:
+                        memory: 1Gi
+        target:
+          kind: Deployment
+          name: (kustomize-controller|helm-controller|source-controller)
+      - patch: |
+          - op: add
+            path: /spec/template/spec/containers/0/args/-
+            value: --concurrent=20
+          - op: replace
+            path: /spec/template/spec/volumes/0
+            value:
+              name: temp
+              emptyDir:
+                medium: Memory
+        target:
+          kind: Deployment
+          name: kustomize-controller
+      - patch: |
+          - op: add
+            path: /spec/template/spec/containers/0/args/-
+            value: --helm-cache-max-size=10
+          - op: add
+            path: /spec/template/spec/containers/0/args/-
+            value: --helm-cache-ttl=60m
+          - op: add
+            path: /spec/template/spec/containers/0/args/-
+            value: --helm-cache-purge-interval=5m
+        target:
+          kind: Deployment
+          name: source-controller
+      - patch: |
+          - op: add
+            path: /spec/template/spec/containers/0/args/-
+            value: --feature-gates=OOMWatch=true
+          - op: add
+            path: /spec/template/spec/containers/0/args/-
+            value: --oom-watch-memory-threshold=95
+          - op: add
+            path: /spec/template/spec/containers/0/args/-
+            value: --oom-watch-interval=500ms
+        target:
+          kind: Deployment
+          name: helm-controller
+      - patch: |
+          - op: add
+            path: /spec/template/spec/containers/0/args/-
+            value: --feature-gates=DisableChartDigestTracking=true
+        target:
+          kind: Deployment
+          name: helm-controller
+{{- end -}}

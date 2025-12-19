@@ -8,10 +8,7 @@ helmDefaults:
   args:
     - --include-crds
     - --no-hooks
-  postRenderer: bash
-  postRendererArgs:
-    - -c
-    - yq eval-all --exit-status 'select(.kind == "CustomResourceDefinition")'
+  postRenderer: /home/clay/work/home-ops-observability/bootstrap/helmfile.d/post-renderer.sh
 
 releases:
   - name: cloudflare-dns
