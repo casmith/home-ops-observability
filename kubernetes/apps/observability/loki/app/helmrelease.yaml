@@ -79,6 +79,14 @@ spec:
     backend:
       replicas: 0
 
+    # Memcached configuration - reduce memory for 8GB nodes
+    chunksCache:
+      enabled: true
+      allocatedMemory: 512
+    resultsCache:
+      enabled: true
+      allocatedMemory: 256
+
     # Monitoring
     monitoring:
       selfMonitoring:
