@@ -15,6 +15,7 @@ spec:
             apiTokenSecretRef:
               name: cluster-secrets
               key: SECRET_CLOUDFLARE_API_TOKEN
+              namespace: flux-system
         selector:
           dnsZones:
             - "kalde.in"
