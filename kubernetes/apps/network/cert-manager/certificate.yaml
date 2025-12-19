@@ -1,0 +1,15 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: obs-kalde-in
+  namespace: network
+spec:
+  secretName: obs-kalde-in-tls
+  issuerRef:
+    name: letsencrypt-production
+    kind: ClusterIssuer
+  commonName: "obs.kalde.in"
+  dnsNames:
+    - "obs.kalde.in"
+    - "*.obs.kalde.in"
