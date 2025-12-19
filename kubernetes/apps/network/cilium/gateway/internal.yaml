@@ -25,4 +25,8 @@ spec:
         namespaces:
           from: All
       tls:
-        mode: Passthrough
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: obs-kalde-in-tls
+            namespace: network
