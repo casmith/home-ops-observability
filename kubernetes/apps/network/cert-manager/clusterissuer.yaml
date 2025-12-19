@@ -13,9 +13,8 @@ spec:
       - dns01:
           cloudflare:
             apiTokenSecretRef:
-              name: cluster-secrets
-              key: SECRET_CLOUDFLARE_API_TOKEN
-              namespace: flux-system
+              name: cloudflare-api-token
+              key: api-token
         selector:
           dnsZones:
             - "kalde.in"
