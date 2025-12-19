@@ -5,3 +5,4 @@ resources:
   - ./grafana.yaml
   - ./datasource-prometheus.yaml
   - ./datasource-loki.yaml
+  - ./httproute.yaml
