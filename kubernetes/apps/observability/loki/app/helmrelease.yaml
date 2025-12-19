@@ -71,6 +71,14 @@ spec:
         limits:
           memory: 2Gi
 
+    # Explicitly disable SimpleScalable components
+    write:
+      replicas: 0
+    read:
+      replicas: 0
+    backend:
+      replicas: 0
+
     # Monitoring
     monitoring:
       selfMonitoring:
