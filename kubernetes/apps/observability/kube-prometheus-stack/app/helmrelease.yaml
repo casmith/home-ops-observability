@@ -1,0 +1,114 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kube-prometheus-stack
+  namespace: observability
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: kube-prometheus-stack
+  install:
+    remediation:
+      retries: 3
+    crds: Skip
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+    crds: Skip
+  values:
+    cleanPrometheusOperatorObjectNames: true
+
+    # Disable scraping of the observability cluster's kube components (we're monitoring the main cluster)
+    kubeApiServer:
+      enabled: true
+    kubeControllerManager:
+      enabled: false
+    kubeScheduler:
+      enabled: false
+    kubeEtcd:
+      enabled: false
+    kubeProxy:
+      enabled: false
+
+    # Prometheus configuration
+    prometheus:
+      prometheusSpec:
+        externalUrl: https://prometheus.obs.kalde.in
+        retention: 90d
+        retentionSize: 450GB
+
+        # Resource limits
+        resources:
+          requests:
+            cpu: 200m
+            memory: 2Gi
+          limits:
+            memory: 4Gi
+
+        # NFS Storage
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: nfs-client
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 500Gi
+
+        # Security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65534
+          runAsGroup: 65534
+          fsGroup: 65534
+
+        # Monitor selectors - scrape everything
+        podMonitorSelectorNilUsesHelmValues: false
+        probeSelectorNilUsesHelmValues: false
+        ruleSelectorNilUsesHelmValues: false
+        scrapeConfigSelectorNilUsesHelmValues: false
+        serviceMonitorSelectorNilUsesHelmValues: false
+
+        # Federation from main cluster
+        additionalScrapeConfigs:
+          - job_name: 'federate-main-cluster'
+            honor_labels: true
+            metrics_path: '/federate'
+            params:
+              'match[]':
+                - '{job=~".+"}'
+            static_configs:
+              - targets:
+                  - 'prometheus.kalde.in'
+                labels:
+                  cluster: main
+            scheme: https
+
+    # Node exporter
+    prometheus-node-exporter:
+      fullnameOverride: node-exporter
+
+    # Kube state metrics
+    kube-state-metrics:
+      fullnameOverride: kube-state-metrics
+
+    # Alertmanager
+    alertmanager:
+      enabled: true
+      alertmanagerSpec:
+        storage:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: nfs-client
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 10Gi
+
+    # Disable Grafana (we'll deploy separately)
+    grafana:
+      enabled: false
+      forceDeployDashboards: true
