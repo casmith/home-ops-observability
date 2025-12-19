@@ -30,6 +30,18 @@ spec:
       # Authentication
       auth_enabled: false
 
+      # Single instance configuration - disable memberlist
+      memberlist:
+        join_members: []
+
+      # Configure ingester for single replica
+      ingester:
+        lifecycler:
+          ring:
+            kvstore:
+              store: inmemory
+            replication_factor: 1
+
       # Storage configuration
       schemaConfig:
         configs:
