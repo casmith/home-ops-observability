@@ -1,0 +1,12 @@
+---
+# IMPORTANT: This file contains the age secret key - encrypt with: sops -e -i kubernetes/components/common/sops/sops-age.sops.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sops-age
+  namespace: flux-system
+stringData:
+  age.agekey: |
+    # created: 2025-12-18T23:42:55-06:00
+    # public key: age189gqacgyls7puscnagahv8m0synjs3v8hkn8ur8w4c56g9vpdccshj2400
+    AGE-SECRET-KEY-1YD3HNK5HSANP66RU4K3PZWEGNZS0RJKAX52RJFLRU5T22V3H6DPQ22WCR4
