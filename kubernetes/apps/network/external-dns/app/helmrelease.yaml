@@ -33,10 +33,6 @@ spec:
     # Sources to watch for DNS entries
     sources:
       - gateway-httproute
-      - gateway-grpcroute
-      - gateway-tcproute
-      - gateway-tlsroute
-      - gateway-udproute
 
     # Cloudflare environment variables
     env:
