@@ -2,7 +2,7 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: external-dns
+  name: cloudflare-dns
   namespace: network
 spec:
   interval: 1h
@@ -23,32 +23,50 @@ spec:
     remediation:
       retries: 3
   values:
+    fullnameOverride: cloudflare-dns
+
     # Provider configuration
     provider: cloudflare
-
-    # Domain filter - only manage obs.kalde.in
-    domainFilters:
-      - obs.kalde.in
-
-    # Sources to watch for DNS entries
-    sources:
-      - gateway-httproute
 
     # Cloudflare environment variables
     env:
       - name: CF_API_TOKEN
         valueFrom:
           secretKeyRef:
-            name: cloudflare-api-token
+            name: cloudflare-dns-secret
             key: api-token
+
+    # Extra arguments to match main cluster pattern
+    extraArgs:
+      - --cloudflare-dns-records-per-page=1000
+      - --cloudflare-proxied
+      - --crd-source-apiversion=externaldns.k8s.io/v1alpha1
+      - --crd-source-kind=DNSEndpoint
+      - --gateway-name=external
+      - --gateway-namespace=network
+
+    # Trigger loop on events for faster updates
+    triggerLoopOnEvent: true
+
+    # Sources to watch for DNS entries
+    sources:
+      - crd
+      - gateway-httproute
 
     # Policy - sync to create/update/delete records
     policy: sync
 
-    # TXT registry for tracking managed records
-    registry: txt
+    # TXT registry for tracking managed records (different from main cluster!)
     txtOwnerId: obs-cluster
-    txtPrefix: external-dns-
+    txtPrefix: k8s.
+
+    # Domain filter - only manage obs.kalde.in (isolated from main cluster!)
+    domainFilters:
+      - obs.kalde.in
+
+    # Service monitor
+    serviceMonitor:
+      enabled: true
 
     # Resources
     resources:
