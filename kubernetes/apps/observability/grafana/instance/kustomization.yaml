@@ -6,3 +6,4 @@ resources:
   - ./datasource-prometheus.yaml
   - ./datasource-loki.yaml
   - ./httproute.yaml
+  - ./dnsendpoint.yaml
