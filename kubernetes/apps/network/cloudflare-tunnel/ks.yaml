@@ -6,6 +6,10 @@ metadata:
   namespace: flux-system
 spec:
   targetNamespace: network
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
