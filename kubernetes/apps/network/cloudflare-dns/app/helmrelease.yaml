@@ -55,9 +55,9 @@ spec:
     txtOwnerId: obs-cluster
     txtPrefix: k8s.
 
-    # Domain filter - only manage obs.kalde.in (isolated from main cluster!)
+    # Domain filter - manage kalde.in zone but limit with txtOwnerId (isolated from main cluster!)
     domainFilters:
-      - obs.kalde.in
+      - kalde.in
 
     # Service monitor
     serviceMonitor:
