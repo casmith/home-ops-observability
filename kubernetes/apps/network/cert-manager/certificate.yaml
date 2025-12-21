@@ -2,14 +2,14 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: obs-kalde-in
+  name: kalde-in-wildcard
   namespace: network
 spec:
-  secretName: obs-kalde-in-tls
+  secretName: kalde-in-wildcard-tls
   issuerRef:
     name: letsencrypt-production
     kind: ClusterIssuer
-  commonName: "obs.kalde.in"
+  commonName: "*.kalde.in"
   dnsNames:
-    - "obs.kalde.in"
-    - "*.obs.kalde.in"
+    - "*.kalde.in"
+    - "kalde.in"

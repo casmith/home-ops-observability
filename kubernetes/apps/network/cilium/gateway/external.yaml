@@ -7,23 +7,23 @@ metadata:
   annotations:
     # Assign the external VIP
     io.cilium/lb-ipam-ips: "192.168.10.241"
-    # Tell external-dns to create CNAME records pointing to external.obs.kalde.in
+    # Tell external-dns to create CNAME records pointing to external-obs.kalde.in
     # instead of A records pointing to the Gateway IP
-    external-dns.alpha.kubernetes.io/target: "external.obs.kalde.in"
+    external-dns.alpha.kubernetes.io/target: "external-obs.kalde.in"
 spec:
   gatewayClassName: cilium
   listeners:
     - name: http
       protocol: HTTP
       port: 80
-      hostname: "*.obs.kalde.in"
+      hostname: "*-obs.kalde.in"
       allowedRoutes:
         namespaces:
           from: All
     - name: https
       protocol: HTTPS
       port: 443
-      hostname: "*.obs.kalde.in"
+      hostname: "*-obs.kalde.in"
       allowedRoutes:
         namespaces:
           from: All
@@ -31,5 +31,5 @@ spec:
         mode: Terminate
         certificateRefs:
           - kind: Secret
-            name: obs-kalde-in-tls
+            name: kalde-in-wildcard-tls
             namespace: network

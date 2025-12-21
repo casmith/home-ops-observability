@@ -9,7 +9,7 @@ spec:
     - name: external
       namespace: network
   hostnames:
-    - "grafana.obs.kalde.in"
+    - "grafana-obs.kalde.in"
   rules:
     - matches:
         - path:

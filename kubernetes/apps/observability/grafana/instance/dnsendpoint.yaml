@@ -6,8 +6,8 @@ metadata:
   namespace: observability
 spec:
   endpoints:
-    - dnsName: grafana.obs.kalde.in
+    - dnsName: grafana-obs.kalde.in
       recordTTL: 1
       recordType: CNAME
       targets:
-        - external.obs.kalde.in
+        - external-obs.kalde.in

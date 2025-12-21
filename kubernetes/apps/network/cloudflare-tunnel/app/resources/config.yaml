@@ -1,10 +1,8 @@
 ---
 originRequest:
-  originServerName: "external.obs.kalde.in"
+  originServerName: "external-obs.kalde.in"
 
 ingress:
-  - hostname: "obs.kalde.in"
-    service: &svc https://cilium-gateway-external.network.svc.cluster.local
-  - hostname: "*.obs.kalde.in"
-    service: *svc
+  - hostname: "*-obs.kalde.in"
+    service: https://cilium-gateway-external.network.svc.cluster.local
   - service: http_status:404
