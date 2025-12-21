@@ -82,7 +82,7 @@ spec:
                 - '{job=~".+"}'
             static_configs:
               - targets:
-                  - '192.168.10.242:443'
+                  - '192.168.10.252:443'
                 labels:
                   cluster: main
             scheme: https
