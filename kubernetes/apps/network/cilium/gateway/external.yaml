@@ -16,14 +16,14 @@ spec:
     - name: http
       protocol: HTTP
       port: 80
-      hostname: "*-obs.kalde.in"
+      hostname: "*.kalde.in"
       allowedRoutes:
         namespaces:
           from: All
     - name: https
       protocol: HTTPS
       port: 443
-      hostname: "*-obs.kalde.in"
+      hostname: "*.kalde.in"
       allowedRoutes:
         namespaces:
           from: All
