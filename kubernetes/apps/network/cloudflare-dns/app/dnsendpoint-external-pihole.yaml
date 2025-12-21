@@ -5,6 +5,8 @@ kind: DNSEndpoint
 metadata:
   name: external-obs-pihole
   namespace: network
+  labels:
+    external-dns.io/provider: pihole
   annotations:
     external-dns.alpha.kubernetes.io/target: "192.168.10.241"
 spec:
