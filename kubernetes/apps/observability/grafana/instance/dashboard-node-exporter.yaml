@@ -1,0 +1,17 @@
+---
+# Node Exporter Full dashboard for monitoring node metrics
+# Dashboard source: https://grafana.com/grafana/dashboards/1860
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: node-exporter-full
+  namespace: observability
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  datasources:
+    - datasourceName: Prometheus
+      inputName: DS_PROMETHEUS
+  url: https://grafana.com/api/dashboards/1860/revisions/37/download
+  folder: Main Cluster

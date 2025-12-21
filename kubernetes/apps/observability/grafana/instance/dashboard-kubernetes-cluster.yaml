@@ -1,0 +1,17 @@
+---
+# Kubernetes cluster monitoring dashboard
+# Dashboard source: https://grafana.com/grafana/dashboards/15757
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: kubernetes-cluster
+  namespace: observability
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  datasources:
+    - datasourceName: Prometheus
+      inputName: DS_PROMETHEUS
+  url: https://grafana.com/api/dashboards/15757/revisions/48/download
+  folder: Main Cluster

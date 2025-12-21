@@ -1,0 +1,17 @@
+---
+# Kubernetes Views - Pods dashboard
+# Dashboard source: https://grafana.com/grafana/dashboards/15760
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: kubernetes-views-pods
+  namespace: observability
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  datasources:
+    - datasourceName: Prometheus
+      inputName: DS_PROMETHEUS
+  url: https://grafana.com/api/dashboards/15760/revisions/32/download
+  folder: Main Cluster
