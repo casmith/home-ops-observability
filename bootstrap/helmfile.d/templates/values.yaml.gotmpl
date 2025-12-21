@@ -86,6 +86,20 @@ service:
 replicaCount: 2
 servers:
   - zones:
+      - zone: kalde.in
+        scheme: dns://
+        use_tcp: true
+    port: 53
+    plugins:
+      - name: errors
+      - name: cache
+        parameters: 30
+      - name: forward
+        parameters: . 192.168.10.80 192.168.10.79
+      - name: log
+        configBlock: |-
+          class error
+  - zones:
       - zone: .
         scheme: dns://
         use_tcp: true
