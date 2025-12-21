@@ -7,3 +7,4 @@ resources:
   - ./cert-manager/ks.yaml
   - ./cloudflare-dns/ks.yaml
   - ./cloudflare-tunnel/ks.yaml
+  - ./external-dns-pihole/ks.yaml

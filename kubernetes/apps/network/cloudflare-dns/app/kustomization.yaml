@@ -6,3 +6,4 @@ resources:
   - ./cloudflare-secret.yaml
   - ./helmrelease.yaml
   - ./dnsendpoint-external.yaml
+  - ./dnsendpoint-external-pihole.yaml

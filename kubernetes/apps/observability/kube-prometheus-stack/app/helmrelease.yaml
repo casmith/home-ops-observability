@@ -72,7 +72,8 @@ spec:
         scrapeConfigSelectorNilUsesHelmValues: false
         serviceMonitorSelectorNilUsesHelmValues: false
 
-        # Federation from main cluster via internal gateway IP
+        # Federation from main cluster via internal DNS (Pi-hole)
+        # Pi-hole will resolve prometheus.kalde.in to internal gateway IP
         additionalScrapeConfigs:
           - job_name: 'federate-main-cluster'
             honor_labels: true
@@ -82,13 +83,12 @@ spec:
                 - '{job=~".+"}'
             static_configs:
               - targets:
-                  - '192.168.10.252:443'
+                  - 'prometheus.kalde.in'
                 labels:
                   cluster: main
             scheme: https
             tls_config:
               insecure_skip_verify: true
-              server_name: prometheus.kalde.in
 
     # Node exporter
     prometheus-node-exporter:

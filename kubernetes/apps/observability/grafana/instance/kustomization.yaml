@@ -7,3 +7,4 @@ resources:
   - ./datasource-loki.yaml
   - ./httproute.yaml
   - ./dnsendpoint.yaml
+  - ./dnsendpoint-pihole.yaml
