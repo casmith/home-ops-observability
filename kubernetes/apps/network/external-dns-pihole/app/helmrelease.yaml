@@ -43,6 +43,9 @@ spec:
       - --crd-source-apiversion=externaldns.k8s.io/v1alpha1
       - --crd-source-kind=DNSEndpoint
       - --label-filter=external-dns.io/provider=pihole
+      - --gateway-name=external
+      - --gateway-namespace=network
+      - --target-net-filter=0.0.0.0/0
 
     interval: 1m
     logLevel: info
@@ -57,6 +60,11 @@ spec:
 
     sources:
       - crd
+      - gateway-httproute
+
+    # Override all HTTPRoute targets to use internal gateway IP
+    defaultTargets:
+      - 192.168.10.241
 
     serviceMonitor:
       enabled: true
