@@ -89,6 +89,8 @@ spec:
             tls_config:
               insecure_skip_verify: true
               server_name: prometheus.kalde.in
+            headers:
+              Host: prometheus.kalde.in
 
     # Node exporter
     prometheus-node-exporter:
