@@ -1,6 +1,6 @@
 ---
 # Internal-only HTTPRoute for Loki
-# Allows main cluster to ship logs via loki.kalde.in
+# Allows main cluster to ship logs via loki-obs.kalde.in
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -11,7 +11,7 @@ spec:
     - name: internal
       namespace: network
   hostnames:
-    - loki.kalde.in
+    - loki-obs.kalde.in
   rules:
     - backendRefs:
         - name: loki-gateway
