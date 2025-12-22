@@ -1,0 +1,14 @@
+---
+# DNSEndpoint for loki-obs.kalde.in to be picked up by external-dns-pihole
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: loki-pihole
+  namespace: observability
+spec:
+  endpoints:
+    - dnsName: loki-obs.kalde.in
+      recordTTL: 300
+      recordType: A
+      targets:
+        - 192.168.10.242  # Internal Gateway IP
