@@ -1,0 +1,53 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: node-alerts
+  namespace: observability
+  labels:
+    prometheus: kube-prometheus-stack
+    role: alert-rules
+spec:
+  groups:
+    - name: node.rules
+      interval: 30s
+      rules:
+        - alert: NodeDown
+          expr: up{job="node-exporter", cluster="main"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            cluster: main
+          annotations:
+            summary: "Node {{ $labels.instance }} is down"
+            description: "Node {{ $labels.instance }} in cluster {{ $labels.cluster }} has been down for more than 5 minutes."
+
+        - alert: NodeNotReady
+          expr: kube_node_status_condition{cluster="main", condition="Ready", status="true"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            cluster: main
+          annotations:
+            summary: "Node {{ $labels.node }} is not ready"
+            description: "Node {{ $labels.node }} in cluster {{ $labels.cluster }} has been in NotReady state for more than 5 minutes."
+
+        - alert: NodeMemoryPressure
+          expr: kube_node_status_condition{cluster="main", condition="MemoryPressure", status="true"} == 1
+          for: 5m
+          labels:
+            severity: warning
+            cluster: main
+          annotations:
+            summary: "Node {{ $labels.node }} has memory pressure"
+            description: "Node {{ $labels.node }} in cluster {{ $labels.cluster }} is experiencing memory pressure."
+
+        - alert: NodeDiskPressure
+          expr: kube_node_status_condition{cluster="main", condition="DiskPressure", status="true"} == 1
+          for: 5m
+          labels:
+            severity: warning
+            cluster: main
+          annotations:
+            summary: "Node {{ $labels.node }} has disk pressure"
+            description: "Node {{ $labels.node }} in cluster {{ $labels.cluster }} is experiencing disk pressure."
