@@ -1,5 +1,6 @@
 ---
 # Internal DNS record for Pi-hole - points to internal gateway IP
+# This is the ONLY DNS source for grafana-obs.kalde.in (not managed by Cloudflare)
 apiVersion: externaldns.k8s.io/v1alpha1
 kind: DNSEndpoint
 metadata:
@@ -7,12 +8,10 @@ metadata:
   namespace: observability
   labels:
     external-dns.io/provider: pihole
-  annotations:
-    external-dns.alpha.kubernetes.io/target: "192.168.10.241"
 spec:
   endpoints:
     - dnsName: grafana-obs.kalde.in
       recordTTL: 300
       recordType: A
       targets:
-        - 192.168.10.241  # obs cluster internal gateway
+        - 192.168.10.242  # Internal Gateway IP (not external)

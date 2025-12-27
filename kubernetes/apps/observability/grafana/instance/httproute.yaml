@@ -4,12 +4,11 @@ kind: HTTPRoute
 metadata:
   name: grafana
   namespace: observability
-  annotations:
-    # Exclude from Cloudflare DNS - only managed by Pi-hole
-    external-dns.alpha.kubernetes.io/exclude: "true"
 spec:
   parentRefs:
-    - name: external
+    # Only use internal Gateway - prevents cloudflare-dns from managing this domain
+    # DNS is managed solely by Pi-hole DNSEndpoint
+    - name: internal
       namespace: network
   hostnames:
     - "grafana-obs.kalde.in"
