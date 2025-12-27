@@ -5,7 +5,8 @@ metadata:
   name: grafana
   namespace: observability
   annotations:
-    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
+    # Exclude from Cloudflare DNS - only managed by Pi-hole
+    external-dns.alpha.kubernetes.io/exclude: "true"
 spec:
   parentRefs:
     - name: external
