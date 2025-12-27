@@ -14,4 +14,4 @@ spec:
       recordTTL: 300
       recordType: A
       targets:
-        - 192.168.10.242  # Internal Gateway IP (not external)
+        - 192.168.10.241  # External Gateway IP
