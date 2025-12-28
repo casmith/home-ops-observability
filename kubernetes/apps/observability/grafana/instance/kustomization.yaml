@@ -6,7 +6,6 @@ resources:
   - ./datasource-prometheus.yaml
   - ./datasource-loki.yaml
   - ./httproute.yaml
-  - ./dnsendpoint.yaml
   - ./dnsendpoint-pihole.yaml
   - ./dashboard-node-exporter.yaml
   - ./dashboard-kubernetes-cluster.yaml
