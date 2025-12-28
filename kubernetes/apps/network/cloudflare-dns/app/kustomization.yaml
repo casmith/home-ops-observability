@@ -1,9 +1,0 @@
----
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-  - ./ocirepository.yaml
-  - ./cloudflare-secret.yaml
-  - ./helmrelease.yaml
-  - ./dnsendpoint-external.yaml
-  - ./dnsendpoint-external-pihole.yaml

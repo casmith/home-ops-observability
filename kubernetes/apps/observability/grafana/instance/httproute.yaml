@@ -6,11 +6,12 @@ metadata:
   namespace: observability
 spec:
   parentRefs:
-    # Using external Gateway but cloudflare-dns is configured to not create DNS records for this
-    # DNS is managed solely by Pi-hole DNSEndpoint
-    - name: external
+    # Using internal Gateway - cloudflare-dns ONLY watches external Gateway
+    # This ensures grafana-obs.kalde.in is NEVER managed by Cloudflare DNS
+    # DNS is managed solely by Pi-hole
+    - name: internal
       namespace: network
-      sectionName: https  # Only attach to HTTPS listener to avoid cloudflare-dns picking it up
+      sectionName: https
   hostnames:
     - "grafana-obs.kalde.in"
   rules:

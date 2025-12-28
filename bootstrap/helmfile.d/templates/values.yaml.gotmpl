@@ -182,6 +182,8 @@ instance:
     url: "ssh://git@github.com/casmith/home-ops-observability.git"
     ref: "refs/heads/main"
     path: kubernetes/flux/cluster
+    secretRef:
+      name: flux-system
   commonMetadata:
     labels:
       app.kubernetes.io/name: flux
