@@ -35,8 +35,6 @@ spec:
     extraArgs:
       - --cloudflare-dns-records-per-page=1000
       - --cloudflare-proxied
-      - --gateway-name=external
-      - --gateway-namespace=network
       # CRITICAL: Exclude IPv6 to prevent AAAA records that cause connection issues
       - --exclude-target-net=::/0
 
@@ -45,7 +43,6 @@ spec:
 
     # Sources to watch for DNS entries
     sources:
-      - gateway-httproute
       - crd
 
     # Policy - sync to create/update/delete records
