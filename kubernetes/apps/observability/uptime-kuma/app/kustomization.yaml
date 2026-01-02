@@ -5,3 +5,4 @@ namespace: observability
 resources:
   - ./helmrelease.yaml
   - ./httproute.yaml
+  - ./dnsendpoint-pihole.yaml
