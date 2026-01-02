@@ -20,6 +20,15 @@ spec:
   values:
     fullnameOverride: *app
 
+    # RBAC configuration
+    rbac:
+      create: true
+
+    # Service account
+    serviceAccount:
+      create: true
+      name: cloudflare-dns
+
     # Provider configuration
     provider: cloudflare
 
