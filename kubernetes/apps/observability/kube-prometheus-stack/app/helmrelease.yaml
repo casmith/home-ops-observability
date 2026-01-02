@@ -43,10 +43,11 @@ spec:
         # Resource limits
         resources:
           requests:
-            cpu: 200m
-            memory: 2Gi
-          limits:
+            cpu: 500m
             memory: 4Gi
+          limits:
+            cpu: 2000m
+            memory: 8Gi
 
         # NFS Storage
         storageSpec:
@@ -76,6 +77,8 @@ spec:
         # Pi-hole will resolve prometheus.kalde.in to internal gateway IP
         additionalScrapeConfigs:
           - job_name: 'federate-main-cluster'
+            scrape_interval: 60s
+            scrape_timeout: 45s
             honor_labels: true
             metrics_path: '/federate'
             params:
@@ -93,6 +96,13 @@ spec:
     # Node exporter
     prometheus-node-exporter:
       fullnameOverride: node-exporter
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
 
     # Kube state metrics
     kube-state-metrics:
