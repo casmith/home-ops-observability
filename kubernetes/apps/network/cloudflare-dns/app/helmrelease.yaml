@@ -34,7 +34,6 @@ spec:
     # Extra arguments
     extraArgs:
       - --cloudflare-dns-records-per-page=1000
-      - --cloudflare-proxied=false
       # CRITICAL: Exclude IPv6 to prevent AAAA records that cause connection issues
       - --exclude-target-net=::/0
 
