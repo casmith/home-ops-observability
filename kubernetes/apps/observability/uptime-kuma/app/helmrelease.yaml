@@ -59,7 +59,9 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
-              capabilities: { drop: ["ALL"] }
+              capabilities:
+                drop: ["ALL"]
+                add: ["NET_RAW"]
             resources:
               requests:
                 cpu: 50m
