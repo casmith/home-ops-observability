@@ -38,7 +38,6 @@ spec:
           {
             "name": "node",
             "type": "query",
-            "datasource": {"type": "prometheus", "uid": "prometheus"},
             "query": "label_values(kube_node_info{cluster=\"$cluster\"}, node)",
             "refresh": 2,
             "includeAll": true,
