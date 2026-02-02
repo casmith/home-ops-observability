@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - ./kubernetes-overview.yaml
   - ./loki-performance.yaml
+  - ./node-status.yaml

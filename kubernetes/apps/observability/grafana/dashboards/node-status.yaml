@@ -1,0 +1,773 @@
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: node-status
+  namespace: observability
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  json: |
+    {
+      "title": "Node Status Dashboard",
+      "uid": "node-status-dashboard",
+      "tags": ["kubernetes", "nodes", "resources"],
+      "timezone": "browser",
+      "schemaVersion": 16,
+      "refresh": "30s",
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "templating": {
+        "list": [
+          {
+            "name": "cluster",
+            "type": "custom",
+            "current": {
+              "text": "main",
+              "value": "main"
+            },
+            "options": [
+              {"text": "main", "value": "main", "selected": true}
+            ],
+            "hide": 0,
+            "label": "Cluster"
+          },
+          {
+            "name": "node",
+            "type": "query",
+            "datasource": {"type": "prometheus", "uid": "prometheus"},
+            "query": "label_values(kube_node_info{cluster=\"$cluster\"}, node)",
+            "refresh": 2,
+            "includeAll": true,
+            "multi": true,
+            "current": {
+              "text": "All",
+              "value": "$__all"
+            },
+            "hide": 0,
+            "label": "Node"
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 100,
+          "title": "Node Overview",
+          "type": "row",
+          "gridPos": {"x": 0, "y": 0, "w": 24, "h": 1},
+          "collapsed": false
+        },
+        {
+          "id": 1,
+          "title": "Nodes Ready",
+          "type": "stat",
+          "gridPos": {"x": 0, "y": 1, "w": 4, "h": 4},
+          "targets": [
+            {
+              "expr": "sum(kube_node_status_condition{cluster=\"$cluster\", condition=\"Ready\", status=\"true\"})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "red", "value": null},
+                  {"color": "green", "value": 1}
+                ]
+              },
+              "unit": "short"
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "values": false,
+              "calcs": ["lastNotNull"],
+              "fields": ""
+            },
+            "textMode": "auto"
+          }
+        },
+        {
+          "id": 2,
+          "title": "Total Pods Running",
+          "type": "stat",
+          "gridPos": {"x": 4, "y": 1, "w": 4, "h": 4},
+          "targets": [
+            {
+              "expr": "sum(kube_pod_status_phase{cluster=\"$cluster\", phase=\"Running\"})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null}
+                ]
+              },
+              "unit": "short"
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "values": false,
+              "calcs": ["lastNotNull"],
+              "fields": ""
+            },
+            "textMode": "auto"
+          }
+        },
+        {
+          "id": 3,
+          "title": "Cluster CPU Usage",
+          "type": "gauge",
+          "gridPos": {"x": 8, "y": 1, "w": 4, "h": 4},
+          "targets": [
+            {
+              "expr": "sum(rate(container_cpu_usage_seconds_total{cluster=\"$cluster\", container!=\"\", container!=\"POD\"}[5m])) / sum(kube_node_status_allocatable{cluster=\"$cluster\", resource=\"cpu\"}) * 100",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 70},
+                  {"color": "red", "value": 90}
+                ]
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            }
+          },
+          "options": {
+            "reduceOptions": {
+              "values": false,
+              "calcs": ["lastNotNull"],
+              "fields": ""
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          }
+        },
+        {
+          "id": 4,
+          "title": "Cluster Memory Usage",
+          "type": "gauge",
+          "gridPos": {"x": 12, "y": 1, "w": 4, "h": 4},
+          "targets": [
+            {
+              "expr": "sum(container_memory_working_set_bytes{cluster=\"$cluster\", container!=\"\", container!=\"POD\"}) / sum(kube_node_status_allocatable{cluster=\"$cluster\", resource=\"memory\"}) * 100",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 70},
+                  {"color": "red", "value": 90}
+                ]
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            }
+          },
+          "options": {
+            "reduceOptions": {
+              "values": false,
+              "calcs": ["lastNotNull"],
+              "fields": ""
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          }
+        },
+        {
+          "id": 5,
+          "title": "CPU Requests vs Allocatable",
+          "type": "gauge",
+          "gridPos": {"x": 16, "y": 1, "w": 4, "h": 4},
+          "targets": [
+            {
+              "expr": "sum(kube_pod_container_resource_requests{cluster=\"$cluster\", resource=\"cpu\"}) / sum(kube_node_status_allocatable{cluster=\"$cluster\", resource=\"cpu\"}) * 100",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 80},
+                  {"color": "red", "value": 100}
+                ]
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 150
+            }
+          },
+          "options": {
+            "reduceOptions": {
+              "values": false,
+              "calcs": ["lastNotNull"],
+              "fields": ""
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          }
+        },
+        {
+          "id": 6,
+          "title": "Memory Requests vs Allocatable",
+          "type": "gauge",
+          "gridPos": {"x": 20, "y": 1, "w": 4, "h": 4},
+          "targets": [
+            {
+              "expr": "sum(kube_pod_container_resource_requests{cluster=\"$cluster\", resource=\"memory\"}) / sum(kube_node_status_allocatable{cluster=\"$cluster\", resource=\"memory\"}) * 100",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 80},
+                  {"color": "red", "value": 100}
+                ]
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 150
+            }
+          },
+          "options": {
+            "reduceOptions": {
+              "values": false,
+              "calcs": ["lastNotNull"],
+              "fields": ""
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          }
+        },
+        {
+          "id": 101,
+          "title": "Per-Node Resources",
+          "type": "row",
+          "gridPos": {"x": 0, "y": 5, "w": 24, "h": 1},
+          "collapsed": false
+        },
+        {
+          "id": 7,
+          "title": "Node CPU Usage %",
+          "type": "bargauge",
+          "gridPos": {"x": 0, "y": 6, "w": 12, "h": 6},
+          "targets": [
+            {
+              "expr": "sum by (node) (rate(container_cpu_usage_seconds_total{cluster=\"$cluster\", container!=\"\", container!=\"POD\"}[5m])) / on(node) group_left() sum by (node) (kube_node_status_allocatable{cluster=\"$cluster\", resource=\"cpu\"}) * 100",
+              "legendFormat": "{{node}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 70},
+                  {"color": "red", "value": 90}
+                ]
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            }
+          },
+          "options": {
+            "reduceOptions": {
+              "values": false,
+              "calcs": ["lastNotNull"],
+              "fields": ""
+            },
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "showUnfilled": true
+          }
+        },
+        {
+          "id": 8,
+          "title": "Node Memory Usage %",
+          "type": "bargauge",
+          "gridPos": {"x": 12, "y": 6, "w": 12, "h": 6},
+          "targets": [
+            {
+              "expr": "sum by (node) (container_memory_working_set_bytes{cluster=\"$cluster\", container!=\"\", container!=\"POD\"}) / on(node) group_left() sum by (node) (kube_node_status_allocatable{cluster=\"$cluster\", resource=\"memory\"}) * 100",
+              "legendFormat": "{{node}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 70},
+                  {"color": "red", "value": 90}
+                ]
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            }
+          },
+          "options": {
+            "reduceOptions": {
+              "values": false,
+              "calcs": ["lastNotNull"],
+              "fields": ""
+            },
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "showUnfilled": true
+          }
+        },
+        {
+          "id": 9,
+          "title": "Node Details",
+          "type": "table",
+          "gridPos": {"x": 0, "y": 12, "w": 24, "h": 6},
+          "targets": [
+            {
+              "expr": "kube_node_status_allocatable{cluster=\"$cluster\", resource=\"cpu\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "CPU_Allocatable"
+            },
+            {
+              "expr": "kube_node_status_allocatable{cluster=\"$cluster\", resource=\"memory\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "Mem_Allocatable"
+            },
+            {
+              "expr": "sum by (node) (rate(container_cpu_usage_seconds_total{cluster=\"$cluster\", container!=\"\", container!=\"POD\"}[5m]))",
+              "format": "table",
+              "instant": true,
+              "refId": "CPU_Used"
+            },
+            {
+              "expr": "sum by (node) (container_memory_working_set_bytes{cluster=\"$cluster\", container!=\"\", container!=\"POD\"})",
+              "format": "table",
+              "instant": true,
+              "refId": "Mem_Used"
+            },
+            {
+              "expr": "count by (node) (kube_pod_info{cluster=\"$cluster\"})",
+              "format": "table",
+              "instant": true,
+              "refId": "Pod_Count"
+            }
+          ],
+          "transformations": [
+            {
+              "id": "merge"
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "cluster": true,
+                  "job": true,
+                  "resource": true,
+                  "unit": true,
+                  "__name__": true
+                },
+                "renameByName": {
+                  "node": "Node",
+                  "Value #CPU_Allocatable": "CPU Allocatable",
+                  "Value #Mem_Allocatable": "Memory Allocatable",
+                  "Value #CPU_Used": "CPU Used",
+                  "Value #Mem_Used": "Memory Used",
+                  "Value #Pod_Count": "Pods"
+                }
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "CPU Allocatable"},
+                "properties": [{"id": "unit", "value": "short"}, {"id": "decimals", "value": 1}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "CPU Used"},
+                "properties": [{"id": "unit", "value": "short"}, {"id": "decimals", "value": 2}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Memory Allocatable"},
+                "properties": [{"id": "unit", "value": "bytes"}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Memory Used"},
+                "properties": [{"id": "unit", "value": "bytes"}]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "sortBy": [{"desc": false, "displayName": "Node"}]
+          }
+        },
+        {
+          "id": 102,
+          "title": "Pods by Node",
+          "type": "row",
+          "gridPos": {"x": 0, "y": 18, "w": 24, "h": 1},
+          "collapsed": false
+        },
+        {
+          "id": 10,
+          "title": "Pods on Selected Node(s) - Resource Usage",
+          "type": "table",
+          "gridPos": {"x": 0, "y": 19, "w": 24, "h": 12},
+          "targets": [
+            {
+              "expr": "sum by (namespace, pod, node) (kube_pod_info{cluster=\"$cluster\", node=~\"$node\"})",
+              "format": "table",
+              "instant": true,
+              "refId": "PodInfo"
+            },
+            {
+              "expr": "sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{cluster=\"$cluster\", container!=\"\", container!=\"POD\"}[5m])) * on(namespace, pod) group_left(node) sum by (namespace, pod, node) (kube_pod_info{cluster=\"$cluster\", node=~\"$node\"})",
+              "format": "table",
+              "instant": true,
+              "refId": "CPU_Usage"
+            },
+            {
+              "expr": "sum by (namespace, pod) (kube_pod_container_resource_requests{cluster=\"$cluster\", resource=\"cpu\"}) * on(namespace, pod) group_left(node) sum by (namespace, pod, node) (kube_pod_info{cluster=\"$cluster\", node=~\"$node\"})",
+              "format": "table",
+              "instant": true,
+              "refId": "CPU_Request"
+            },
+            {
+              "expr": "sum by (namespace, pod) (kube_pod_container_resource_limits{cluster=\"$cluster\", resource=\"cpu\"}) * on(namespace, pod) group_left(node) sum by (namespace, pod, node) (kube_pod_info{cluster=\"$cluster\", node=~\"$node\"})",
+              "format": "table",
+              "instant": true,
+              "refId": "CPU_Limit"
+            },
+            {
+              "expr": "sum by (namespace, pod) (container_memory_working_set_bytes{cluster=\"$cluster\", container!=\"\", container!=\"POD\"}) * on(namespace, pod) group_left(node) sum by (namespace, pod, node) (kube_pod_info{cluster=\"$cluster\", node=~\"$node\"})",
+              "format": "table",
+              "instant": true,
+              "refId": "Mem_Usage"
+            },
+            {
+              "expr": "sum by (namespace, pod) (kube_pod_container_resource_requests{cluster=\"$cluster\", resource=\"memory\"}) * on(namespace, pod) group_left(node) sum by (namespace, pod, node) (kube_pod_info{cluster=\"$cluster\", node=~\"$node\"})",
+              "format": "table",
+              "instant": true,
+              "refId": "Mem_Request"
+            },
+            {
+              "expr": "sum by (namespace, pod) (kube_pod_container_resource_limits{cluster=\"$cluster\", resource=\"memory\"}) * on(namespace, pod) group_left(node) sum by (namespace, pod, node) (kube_pod_info{cluster=\"$cluster\", node=~\"$node\"})",
+              "format": "table",
+              "instant": true,
+              "refId": "Mem_Limit"
+            }
+          ],
+          "transformations": [
+            {
+              "id": "merge"
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "cluster": true,
+                  "job": true,
+                  "__name__": true,
+                  "uid": true,
+                  "Value #PodInfo": true,
+                  "host_ip": true,
+                  "host_network": true,
+                  "created_by_kind": true,
+                  "created_by_name": true,
+                  "priority_class": true,
+                  "pod_ip": true
+                },
+                "indexByName": {
+                  "node": 0,
+                  "namespace": 1,
+                  "pod": 2,
+                  "Value #CPU_Usage": 3,
+                  "Value #CPU_Request": 4,
+                  "Value #CPU_Limit": 5,
+                  "Value #Mem_Usage": 6,
+                  "Value #Mem_Request": 7,
+                  "Value #Mem_Limit": 8
+                },
+                "renameByName": {
+                  "node": "Node",
+                  "namespace": "Namespace",
+                  "pod": "Pod",
+                  "Value #CPU_Usage": "CPU Used",
+                  "Value #CPU_Request": "CPU Request",
+                  "Value #CPU_Limit": "CPU Limit",
+                  "Value #Mem_Usage": "Memory Used",
+                  "Value #Mem_Request": "Memory Request",
+                  "Value #Mem_Limit": "Memory Limit"
+                }
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "fields": {},
+                "sort": [{"field": "Node", "desc": false}]
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "CPU Used"},
+                "properties": [
+                  {"id": "unit", "value": "short"},
+                  {"id": "decimals", "value": 3},
+                  {"id": "custom.cellOptions", "value": {"type": "color-background", "mode": "gradient"}},
+                  {"id": "color", "value": {"mode": "continuous-BlYlRd"}}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "CPU Request"},
+                "properties": [{"id": "unit", "value": "short"}, {"id": "decimals", "value": 2}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "CPU Limit"},
+                "properties": [{"id": "unit", "value": "short"}, {"id": "decimals", "value": 2}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Memory Used"},
+                "properties": [
+                  {"id": "unit", "value": "bytes"},
+                  {"id": "custom.cellOptions", "value": {"type": "color-background", "mode": "gradient"}},
+                  {"id": "color", "value": {"mode": "continuous-BlYlRd"}}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Memory Request"},
+                "properties": [{"id": "unit", "value": "bytes"}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Memory Limit"},
+                "properties": [{"id": "unit", "value": "bytes"}]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "footer": {
+              "show": true,
+              "reducer": ["sum"],
+              "fields": ["CPU Used", "CPU Request", "Memory Used", "Memory Request"]
+            },
+            "sortBy": [{"desc": false, "displayName": "Node"}]
+          }
+        },
+        {
+          "id": 103,
+          "title": "Resource Trends",
+          "type": "row",
+          "gridPos": {"x": 0, "y": 31, "w": 24, "h": 1},
+          "collapsed": false
+        },
+        {
+          "id": 11,
+          "title": "Node CPU Usage Over Time",
+          "type": "timeseries",
+          "gridPos": {"x": 0, "y": 32, "w": 12, "h": 8},
+          "targets": [
+            {
+              "expr": "sum by (node) (rate(container_cpu_usage_seconds_total{cluster=\"$cluster\", node=~\"$node\", container!=\"\", container!=\"POD\"}[5m]))",
+              "legendFormat": "{{node}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisPlacement": "auto",
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {"mode": "none"}
+              },
+              "unit": "short"
+            }
+          },
+          "options": {
+            "legend": {
+              "calcs": ["mean", "max"],
+              "displayMode": "table",
+              "placement": "bottom"
+            },
+            "tooltip": {"mode": "multi"}
+          }
+        },
+        {
+          "id": 12,
+          "title": "Node Memory Usage Over Time",
+          "type": "timeseries",
+          "gridPos": {"x": 12, "y": 32, "w": 12, "h": 8},
+          "targets": [
+            {
+              "expr": "sum by (node) (container_memory_working_set_bytes{cluster=\"$cluster\", node=~\"$node\", container!=\"\", container!=\"POD\"})",
+              "legendFormat": "{{node}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisPlacement": "auto",
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {"mode": "none"}
+              },
+              "unit": "bytes"
+            }
+          },
+          "options": {
+            "legend": {
+              "calcs": ["mean", "max"],
+              "displayMode": "table",
+              "placement": "bottom"
+            },
+            "tooltip": {"mode": "multi"}
+          }
+        },
+        {
+          "id": 13,
+          "title": "Top 10 Pods by CPU Usage",
+          "type": "timeseries",
+          "gridPos": {"x": 0, "y": 40, "w": 12, "h": 8},
+          "targets": [
+            {
+              "expr": "topk(10, sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{cluster=\"$cluster\", node=~\"$node\", container!=\"\", container!=\"POD\"}[5m])))",
+              "legendFormat": "{{namespace}}/{{pod}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisPlacement": "auto",
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "showPoints": "never",
+                "spanNulls": true
+              },
+              "unit": "short"
+            }
+          },
+          "options": {
+            "legend": {
+              "calcs": ["mean", "lastNotNull"],
+              "displayMode": "table",
+              "placement": "right"
+            },
+            "tooltip": {"mode": "multi"}
+          }
+        },
+        {
+          "id": 14,
+          "title": "Top 10 Pods by Memory Usage",
+          "type": "timeseries",
+          "gridPos": {"x": 12, "y": 40, "w": 12, "h": 8},
+          "targets": [
+            {
+              "expr": "topk(10, sum by (namespace, pod) (container_memory_working_set_bytes{cluster=\"$cluster\", node=~\"$node\", container!=\"\", container!=\"POD\"}))",
+              "legendFormat": "{{namespace}}/{{pod}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisPlacement": "auto",
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "showPoints": "never",
+                "spanNulls": true
+              },
+              "unit": "bytes"
+            }
+          },
+          "options": {
+            "legend": {
+              "calcs": ["mean", "lastNotNull"],
+              "displayMode": "table",
+              "placement": "right"
+            },
+            "tooltip": {"mode": "multi"}
+          }
+        }
+      ]
+    }
