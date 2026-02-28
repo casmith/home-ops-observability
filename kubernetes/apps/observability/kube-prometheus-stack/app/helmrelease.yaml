@@ -126,6 +126,7 @@ spec:
     defaultRules:
       disabled:
         Watchdog: true
+        PrometheusOutOfOrderTimestamps: true
 
     # Disable Grafana (we'll deploy separately)
     grafana:
