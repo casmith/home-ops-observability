@@ -112,6 +112,7 @@ spec:
     alertmanager:
       enabled: true
       alertmanagerSpec:
+        configSecret: alertmanager-config
         storage:
           volumeClaimTemplate:
             spec:

@@ -1,64 +1,27 @@
----
-# Alertmanager email configuration
-# Fill in your SMTP details and encrypt with: sops -e -i alertmanager-config.sops.yaml
+# Alertmanager Discord configuration
+# 1. Replace YOUR_DISCORD_WEBHOOK_URL with your actual Discord webhook URL
+# 2. Encrypt with: sops -e -i alertmanager-config.sops.yaml
 apiVersion: v1
 kind: Secret
 metadata:
-  name: alertmanager-smtp-config
+  name: alertmanager-config
   namespace: observability
 type: Opaque
 stringData:
-  config.yaml: |
-    global:
-      smtp_from: 'alerts@yourdomain.com'  # CHANGE: Your "from" email address
-      smtp_smarthost: 'smtp.example.com:587'  # CHANGE: Your SMTP server and port
-      smtp_auth_username: 'your-email@example.com'  # CHANGE: SMTP username
-      smtp_auth_password: 'your-password-here'  # CHANGE: SMTP password
-      smtp_require_tls: true
-
-    route:
-      receiver: 'email-notifications'
-      group_by: ['alertname', 'cluster', 'severity']
-      group_wait: 10s
-      group_interval: 5m
-      repeat_interval: 4h
-      routes:
-        - match:
-            severity: critical
-          receiver: 'email-notifications'
-          continue: false
-
-    receivers:
-      - name: 'email-notifications'
-        email_configs:
-          - to: 'your-email@example.com'  # CHANGE: Where to send alerts
-            headers:
-              Subject: '[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.alertname }}'
-            html: |
-              <!DOCTYPE html>
-              <html>
-              <head>
-                <style>
-                  body { font-family: Arial, sans-serif; }
-                  .alert { padding: 15px; margin: 10px 0; border-left: 4px solid; }
-                  .critical { border-color: #d32f2f; background-color: #ffebee; }
-                  .warning { border-color: #f57c00; background-color: #fff3e0; }
-                  .info { border-color: #1976d2; background-color: #e3f2fd; }
-                </style>
-              </head>
-              <body>
-                <h2>Alert: {{ .GroupLabels.alertname }}</h2>
-                <p><strong>Status:</strong> {{ .Status | toUpper }}</p>
-                <p><strong>Cluster:</strong> {{ .GroupLabels.cluster }}</p>
-
-                {{ range .Alerts }}
-                <div class="alert {{ .Labels.severity }}">
-                  <h3>{{ .Annotations.summary }}</h3>
-                  <p>{{ .Annotations.description }}</p>
-                  <p><strong>Severity:</strong> {{ .Labels.severity }}</p>
-                  <p><strong>Started:</strong> {{ .StartsAt }}</p>
-                  {{ if .EndsAt }}<p><strong>Ended:</strong> {{ .EndsAt }}</p>{{ end }}
-                </div>
-                {{ end }}
-              </body>
-              </html>
+  alertmanager.yaml: ENC[AES256_GCM,data:d4sVce8vv3+gMwNm3/WOwS+ea9UQ6eEmgx1MovHTx2hN+Hz05QYk2DgxheFz23ulCXeKaUJ6G/oT2hksMVy+IvSZBmYOCpt9BNLd8RwgoGAJasEHA3zLri2x4aMrhMOoKfZW+HB+o90O1iryDHpbMEGbk2StX6U+7oC02wg/SkRU1BqXEeuHU595IKadg62Eb1jJmH7C52gwPovuYSaBi0uynGkDyBosVNcPT+nFjoMTw0OWqhKpgraOBPt2Asqg6+SIMXY3OIA4XjExXM67ashvkB4Gf/R3f9GWuCNe+pmGQnSMt2jhwmt111lnrZWvsDeD4vMoAuKQ10QF+jT2jCEsRjDAIDEvJnTCwNZ7w62pBsaaqomkpz7g314Yz6MUxsbqb6N7ZAuirIQHi22X3nNhbapjR7cSvo8kCQPONOGMeOMwsQBt+wBocP8GXM3ni233r66xeei6gJi2vFe2Lh90yp2OwidPvr5VbIYppQBt62UvorcIQDtiVDy+czDzuj9BGzwPVns53wPiDvxBMRJ1Z9Ea6yYe4VGQ5ejuhoQp4va9ULXTyaAH/U69xBulzIy6H2UqQOdwPwQmWktiaxenPq9wiWBAt1A3bZDJeuak4lGzj4XXxYjbf705xxvUUBrdQ2CHcoZg68qKDOjDw9c=,iv:FcY+kDehRAA9gO41dCzqVnvRoDoNtqNcvBwcSx5IPfo=,tag:LlTiF1OKifQ9SjnrkDeL3w==,type:str]
+sops:
+  age:
+    - recipient: age189gqacgyls7puscnagahv8m0synjs3v8hkn8ur8w4c56g9vpdccshj2400
+      enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSB1eEUzMmVSM1p5TWVFL3pZ
+        YkgyUVBTQ0RrZkRkR2lNUG9TSlhxRGpBcVIwCngwT2NjSURxOWVKMlBCcnpiOHgv
+        VU9IWjhFb2lDZFYrVmNWWW1SNjJLWlEKLS0tIHBzZWZ1c05XUU1LZ1dybDVjeHNG
+        dVd5UE1xRzE3ZldzemNCTmJNRU1xQm8Ko0z74mZCAzD+8ulxJ1G3FlaTpzwmR3HR
+        xVw2XPOCXXCHQNCUxU9ofFA4wRn1ardw5lAbf2w9pdYOMt5gnDbViQ==
+        -----END AGE ENCRYPTED FILE-----
+  lastmodified: "2026-02-28T03:04:28Z"
+  mac: ENC[AES256_GCM,data:kKBla4jrNr/gSJBKf0lMJ7EjlexXK68N+ZI03BsQ4fbyfoW+EpM7My+U6E9rOn6U2PwMKXXDiS/2ltF+QFQnT+Tn9E0zMdzdbgZ/HpRv2ip+5iH/lVVh08FzevEVAbID90KoC0TvL7CzN3O0v5xaQHmMdGawlxcz9Khvdavq1I4=,iv:y03/ZPCkpGoiWDg/adRh3NdP6xVz9O2rzJpvd0E3D3Y=,tag:hWpSAMAAChz/Es3GKlpPVA==,type:str]
+  encrypted_regex: ^(data|stringData)$
+  mac_only_encrypted: true
+  version: 3.11.0
