@@ -125,6 +125,7 @@ spec:
     # Disable default alert rules we don't need
     defaultRules:
       disabled:
+        InfoInhibitor: true
         Watchdog: true
         PrometheusOutOfOrderTimestamps: true
 
