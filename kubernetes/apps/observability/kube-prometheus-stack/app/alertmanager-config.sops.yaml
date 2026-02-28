@@ -1,6 +1,5 @@
-# Alertmanager Discord configuration
-# 1. Replace YOUR_DISCORD_WEBHOOK_URL with your actual Discord webhook URL
-# 2. Encrypt with: sops -e -i alertmanager-config.sops.yaml
+# Alertmanager Discord configuration (uses Discord's Slack-compatible webhook endpoint)
+# Encrypt with: sops -e -i alertmanager-config.sops.yaml
 apiVersion: v1
 kind: Secret
 metadata:
@@ -8,20 +7,20 @@ metadata:
   namespace: observability
 type: Opaque
 stringData:
-  alertmanager.yaml: ENC[AES256_GCM,data:d4sVce8vv3+gMwNm3/WOwS+ea9UQ6eEmgx1MovHTx2hN+Hz05QYk2DgxheFz23ulCXeKaUJ6G/oT2hksMVy+IvSZBmYOCpt9BNLd8RwgoGAJasEHA3zLri2x4aMrhMOoKfZW+HB+o90O1iryDHpbMEGbk2StX6U+7oC02wg/SkRU1BqXEeuHU595IKadg62Eb1jJmH7C52gwPovuYSaBi0uynGkDyBosVNcPT+nFjoMTw0OWqhKpgraOBPt2Asqg6+SIMXY3OIA4XjExXM67ashvkB4Gf/R3f9GWuCNe+pmGQnSMt2jhwmt111lnrZWvsDeD4vMoAuKQ10QF+jT2jCEsRjDAIDEvJnTCwNZ7w62pBsaaqomkpz7g314Yz6MUxsbqb6N7ZAuirIQHi22X3nNhbapjR7cSvo8kCQPONOGMeOMwsQBt+wBocP8GXM3ni233r66xeei6gJi2vFe2Lh90yp2OwidPvr5VbIYppQBt62UvorcIQDtiVDy+czDzuj9BGzwPVns53wPiDvxBMRJ1Z9Ea6yYe4VGQ5ejuhoQp4va9ULXTyaAH/U69xBulzIy6H2UqQOdwPwQmWktiaxenPq9wiWBAt1A3bZDJeuak4lGzj4XXxYjbf705xxvUUBrdQ2CHcoZg68qKDOjDw9c=,iv:FcY+kDehRAA9gO41dCzqVnvRoDoNtqNcvBwcSx5IPfo=,tag:LlTiF1OKifQ9SjnrkDeL3w==,type:str]
+  alertmanager.yaml: ENC[AES256_GCM,data:XAmUiPAEHAObp87bUMfdnKyVGbQGB5axW4OWHgimMcGLbHM6e5pIz+y84VV3b16NjXLOHxh87p1IbXU4g/kKYCQQqMOMg6uOIr+fZJ7/OUd10uG6NF92p2lO6RkYOHyH0NaSrarix4B3sJOlzgVr5fI/erTfMEdwIjBN7idNLEWz/sCzMGGs/shES3wmyteFM+06PwagdevwsPCXoHzSa2ekgpnCI/xOrIxq+fjOpCZ8zc16Gf6TC1RkjiRuUjhqNQw+bbMGXNV7GT/WidfF9wNU1Dqqo51x8wY5mKD7LbwTQvnXvUpyTxQjX7UAA5vyRBwdK6M1FXwlEDOaljpTozJM6vMF71uDVkZGaVFTRly1/xl83TB8tDbE/vAK7GnFEx8JRgdu1nIyxaAZTNKg4/VffFmN8uO2rNfhY01eTfdJql81LZjmH88t7eNfgDFDmsSe8lSCKYecjpBjAj2WaH6JSHMgQcpkdUZvfbX+VBpvV1NbAQNRPjWO0ycZ0GeV6dqJBSsVNgifw1lHXfcJFHrzyKR9pbdZw2zg1r7LXvaBnHRS8WVBZEU72o8vyJcc2U3vCFKqjmHbgQt7JLC40oRVHAI3xuHNsCEa3Uj+ole6t6V1kyiVY84OhkYxDR4NUMYWQiglVD0TsumSopvgnciky01mV2JzPLBSyrSKXkV5Weue6/U/Mvfcqf26Vjm4tKrR9qqJYGpn+kxnCdHON72MhJWSPz0av4iUCoQ+YH4dK6huBGxWRF+fpsQkJ4FQ8IZYelXAcOHEKvUGFNZfRR2AyVwMxjFULOocTodWUFaWKFamaGhS4dJxQ9D1kqumN0Dq7F6nB4NLncIsf63GapxRyqZnZ/s+q808J1ZoGI+PvkyXuP5UKR9K4g7Ho0w6nCDFgwdLn6XKY6+nTWCZ/Jgegv7bpZf+2v9/Tjjx2qb0kMhaH59dZ+vS8G101dGk2iVnhgk/GBjTPeRQp++bDfu4SCs4z2Bo4ysSsewf79ZJSbcTf0Q=,iv:r2axrOSC8n63mdhNnZlOEFAhbsix59X3tKU1f+e/bwU=,tag:7lnoOKSasOaAIBnIyax5Rg==,type:str]
 sops:
   age:
     - recipient: age189gqacgyls7puscnagahv8m0synjs3v8hkn8ur8w4c56g9vpdccshj2400
       enc: |
         -----BEGIN AGE ENCRYPTED FILE-----
-        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSB1eEUzMmVSM1p5TWVFL3pZ
-        YkgyUVBTQ0RrZkRkR2lNUG9TSlhxRGpBcVIwCngwT2NjSURxOWVKMlBCcnpiOHgv
-        VU9IWjhFb2lDZFYrVmNWWW1SNjJLWlEKLS0tIHBzZWZ1c05XUU1LZ1dybDVjeHNG
-        dVd5UE1xRzE3ZldzemNCTmJNRU1xQm8Ko0z74mZCAzD+8ulxJ1G3FlaTpzwmR3HR
-        xVw2XPOCXXCHQNCUxU9ofFA4wRn1ardw5lAbf2w9pdYOMt5gnDbViQ==
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBESStZTFFMR1JFOGpGNmFy
+        NDZTYkYxalZKWnl3b1YyVTBoVDJuUnE2cFJFCmQ3MXU2UkY0YVA5M1p3aDVLd3g1
+        Ym1wWThMWDFRWktRUjhxbVdNSXFJWG8KLS0tIFAxcFFNUy9sSWQyU1ZRd0NSQURy
+        RWlrZklEanRiSjFSeVJqakh1WDZhbncKwofnYPOgJbf8ySZAgzpAut/9KJWs725/
+        iDIr18PYNP2R+CYBVw7ABPFgruYjDnm+UrRjbkOu7rJOCMub09FL3A==
         -----END AGE ENCRYPTED FILE-----
-  lastmodified: "2026-02-28T03:04:28Z"
-  mac: ENC[AES256_GCM,data:kKBla4jrNr/gSJBKf0lMJ7EjlexXK68N+ZI03BsQ4fbyfoW+EpM7My+U6E9rOn6U2PwMKXXDiS/2ltF+QFQnT+Tn9E0zMdzdbgZ/HpRv2ip+5iH/lVVh08FzevEVAbID90KoC0TvL7CzN3O0v5xaQHmMdGawlxcz9Khvdavq1I4=,iv:y03/ZPCkpGoiWDg/adRh3NdP6xVz9O2rzJpvd0E3D3Y=,tag:hWpSAMAAChz/Es3GKlpPVA==,type:str]
+  lastmodified: "2026-02-28T03:38:12Z"
+  mac: ENC[AES256_GCM,data:JNJSXsXviVcEaPp01fPYbb1DiH7/HkFhiAC8iipK+jVFly4eBmN03IvCynTgdo1cXM1ucp0ZfNAxKk6M5NOTF6oEkDN56zP7aoZ4dQOmyqtCXN2f5zq/x6U88oc8WF6EByn5qyIwXN/8Y5m1wHnxR2SyMqHzAnKzHBFAH6Apt8E=,iv:DFUn6pQuiYnFpN5J1mFHrA3FaenWMKR63Qu9zDFmJWI=,tag:Q7pbesNFFIEoTdjV8SxF5g==,type:str]
   encrypted_regex: ^(data|stringData)$
   mac_only_encrypted: true
   version: 3.11.0
