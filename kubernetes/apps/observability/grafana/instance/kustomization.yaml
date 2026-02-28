@@ -5,6 +5,7 @@ resources:
   - ./grafana.yaml
   - ./datasource-prometheus.yaml
   - ./datasource-loki.yaml
+  - ./datasource-alertmanager.yaml
   - ./httproute.yaml
   - ./dnsendpoint-pihole.yaml
   - ./dashboard-node-exporter.yaml
