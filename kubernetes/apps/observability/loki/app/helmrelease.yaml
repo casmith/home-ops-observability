@@ -53,6 +53,20 @@ spec:
               prefix: loki_index_
               period: 24h
 
+      # Log-based alerting (Loki ruler)
+      ruler:
+        enable_api: true
+        # Send alerts to the cluster Alertmanager
+        alertmanager_url: http://kube-prometheus-stack-alertmanager.observability.svc:9093
+        ring:
+          kvstore:
+            store: inmemory
+        storage:
+          type: local
+          local:
+            directory: /etc/loki/rules
+        rule_path: /tmp/loki/rules
+
       # Storage
       storage:
         type: filesystem
@@ -83,6 +97,14 @@ spec:
         enabled: true
         storageClass: nfs-client
         size: 200Gi
+      extraVolumes:
+        - name: loki-rules
+          configMap:
+            name: loki-rules
+      extraVolumeMounts:
+        - name: loki-rules
+          mountPath: /etc/loki/rules
+          readOnly: true
       resources:
         requests:
           cpu: 500m
