@@ -54,7 +54,9 @@ spec:
               period: 24h
 
       # Log-based alerting (Loki ruler)
-      ruler:
+      # NOTE: this chart renders Loki config with common.storage.filesystem.rules_directory=/var/loki/rules
+      # so we mount rules there and configure the ruler via rulerConfig.
+      rulerConfig:
         enable_api: true
         # Send alerts to the cluster Alertmanager
         alertmanager_url: http://kube-prometheus-stack-alertmanager.observability.svc:9093
@@ -64,7 +66,7 @@ spec:
         storage:
           type: local
           local:
-            directory: /etc/loki/rules
+            directory: /var/loki/rules
         rule_path: /tmp/loki/rules
 
       # Storage
@@ -103,7 +105,7 @@ spec:
             name: loki-rules
       extraVolumeMounts:
         - name: loki-rules
-          mountPath: /etc/loki/rules
+          mountPath: /var/loki/rules
           readOnly: true
       resources:
         requests:
