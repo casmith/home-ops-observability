@@ -15,11 +15,12 @@ data:
               sum(
                 count_over_time(
                   {namespace="default", container="app", pod=~"sync-todoist-to-habitica-.*"}
-                  |= "TODOIST_SERVER_ERROR"
+                  |= "Sync finished"
                   [5m]
                 )
               ) > 0
-            for: 1h
+            # Temporary: shorten so we can validate end-to-end quickly
+            for: 2m
             labels:
               severity: warning
               app: sync-todoist-to-habitica
@@ -34,7 +35,7 @@ data:
               sum(
                 count_over_time(
                   {namespace="default", container="app", pod=~"sync-todoist-to-habitica-.*"}
-                  |= "SYNC_FATAL_ERROR"
+                  |= "Sync finished"
                   [5m]
                 )
               ) > 0
