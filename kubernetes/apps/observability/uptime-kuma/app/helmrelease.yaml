@@ -34,16 +34,26 @@ spec:
             env:
               TZ: UTC
             probes:
-              liveness:
+              startup:
                 enabled: true
                 custom: true
                 spec:
                   httpGet:
                     path: /
                     port: &port 3001
-                  initialDelaySeconds: 30
+                  initialDelaySeconds: 10
+                  periodSeconds: 5
+                  timeoutSeconds: 10
+                  failureThreshold: 30
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: *port
                   periodSeconds: 10
-                  timeoutSeconds: 5
+                  timeoutSeconds: 10
                   failureThreshold: 3
               readiness:
                 enabled: true
@@ -52,9 +62,8 @@ spec:
                   httpGet:
                     path: /
                     port: *port
-                  initialDelaySeconds: 15
                   periodSeconds: 10
-                  timeoutSeconds: 5
+                  timeoutSeconds: 10
                   failureThreshold: 3
             securityContext:
               allowPrivilegeEscalation: false
