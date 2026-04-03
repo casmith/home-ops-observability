@@ -30,7 +30,7 @@ spec:
           app:
             image:
               repository: docker.io/louislam/uptime-kuma
-              tag: 2.2.1
+              tag: 2.0.2
             env:
               TZ: UTC
             probes:
