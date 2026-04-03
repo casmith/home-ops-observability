@@ -38,9 +38,11 @@ spec:
                 enabled: true
                 custom: true
                 spec:
-                  httpGet:
-                    path: /api/health
-                    port: &port 3001
+                  exec:
+                    command:
+                      - curl
+                      - -sf
+                      - http://localhost:3001/api/health
                   initialDelaySeconds: 10
                   periodSeconds: 5
                   timeoutSeconds: 5
@@ -49,9 +51,11 @@ spec:
                 enabled: true
                 custom: true
                 spec:
-                  httpGet:
-                    path: /api/health
-                    port: *port
+                  exec:
+                    command:
+                      - curl
+                      - -sf
+                      - http://localhost:3001/api/health
                   periodSeconds: 10
                   timeoutSeconds: 5
                   failureThreshold: 3
@@ -80,7 +84,7 @@ spec:
         controller: uptime-kuma
         ports:
           http:
-            port: *port
+            port: 3001
     persistence:
       data:
         type: nfs
