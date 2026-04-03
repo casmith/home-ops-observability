@@ -39,32 +39,23 @@ spec:
                 custom: true
                 spec:
                   httpGet:
-                    path: /
+                    path: /api/health
                     port: &port 3001
                   initialDelaySeconds: 10
                   periodSeconds: 5
-                  timeoutSeconds: 10
+                  timeoutSeconds: 5
                   failureThreshold: 30
-              liveness:
+              liveness: &probes
                 enabled: true
                 custom: true
                 spec:
                   httpGet:
-                    path: /
+                    path: /api/health
                     port: *port
                   periodSeconds: 10
-                  timeoutSeconds: 10
+                  timeoutSeconds: 5
                   failureThreshold: 3
-              readiness:
-                enabled: true
-                custom: true
-                spec:
-                  httpGet:
-                    path: /
-                    port: *port
-                  periodSeconds: 10
-                  timeoutSeconds: 10
-                  failureThreshold: 3
+              readiness: *probes
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
