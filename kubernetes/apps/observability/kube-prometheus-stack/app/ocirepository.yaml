@@ -8,4 +8,4 @@ spec:
   interval: 1h
   url: oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack
   ref:
-    tag: 82.16.2
+    tag: 83.7.0
