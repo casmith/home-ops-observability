@@ -1,0 +1,51 @@
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: proxmox-node-exporter
+  namespace: observability
+spec:
+  staticConfigs:
+    - targets: ["192.168.10.11:9100"]
+      labels:
+        instance: pve1
+        cluster: proxmox
+    - targets: ["192.168.10.9:9100"]
+      labels:
+        instance: pve2
+        cluster: proxmox
+    - targets: ["192.168.10.12:9100"]
+      labels:
+        instance: pve3
+        cluster: proxmox
+    - targets: ["192.168.10.13:9100"]
+      labels:
+        instance: pve4
+        cluster: proxmox
+    - targets: ["192.168.10.8:9100"]
+      labels:
+        instance: pve5
+        cluster: proxmox
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: proxmox-pve-exporter
+  namespace: observability
+spec:
+  metricsPath: /pve
+  params:
+    module: ["default"]
+  staticConfigs:
+    - targets: ["pve1", "pve2", "pve3", "pve4", "pve5"]
+  # Query each PVE host via pve1's local pve-exporter (the targets above are
+  # passed as ?target=<host> to the exporter, not scraped directly).
+  relabelings:
+    - sourceLabels: [__address__]
+      targetLabel: __param_target
+    - sourceLabels: [__param_target]
+      targetLabel: instance
+    - targetLabel: __address__
+      replacement: "192.168.10.11:9221"
+    - targetLabel: cluster
+      replacement: proxmox

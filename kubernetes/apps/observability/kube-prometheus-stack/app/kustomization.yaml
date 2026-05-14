@@ -5,3 +5,4 @@ resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
   - ./alertmanager-config.sops.yaml
+  - ./scrapeconfig-proxmox.yaml
