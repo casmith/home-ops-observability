@@ -1,0 +1,831 @@
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: proxmox-pve
+  namespace: observability
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  json: |
+    {
+      "title": "Proxmox VE",
+      "uid": "proxmox-pve-dashboard",
+      "tags": ["proxmox", "pve", "hypervisor"],
+      "timezone": "browser",
+      "schemaVersion": 16,
+      "refresh": "30s",
+      "time": {
+        "from": "now-3h",
+        "to": "now"
+      },
+      "templating": {
+        "list": [
+          {
+            "name": "cluster",
+            "type": "custom",
+            "current": {"text": "proxmox", "value": "proxmox"},
+            "options": [
+              {"text": "proxmox", "value": "proxmox", "selected": true}
+            ],
+            "hide": 0,
+            "label": "Cluster"
+          },
+          {
+            "name": "instance",
+            "type": "query",
+            "query": "label_values(pve_up{cluster=\"$cluster\"}, instance)",
+            "refresh": 2,
+            "includeAll": true,
+            "multi": true,
+            "current": {"text": "All", "value": "$__all"},
+            "hide": 0,
+            "label": "Node"
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 100,
+          "title": "Cluster Overview",
+          "type": "row",
+          "gridPos": {"x": 0, "y": 0, "w": 24, "h": 1},
+          "collapsed": false
+        },
+        {
+          "id": 1,
+          "title": "Nodes Up",
+          "type": "stat",
+          "gridPos": {"x": 0, "y": 1, "w": 4, "h": 4},
+          "targets": [
+            {
+              "expr": "sum(pve_up{cluster=\"$cluster\", id=~\"node/.*\"})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "red", "value": null},
+                  {"color": "green", "value": 1}
+                ]
+              },
+              "unit": "short"
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          }
+        },
+        {
+          "id": 2,
+          "title": "Running VMs",
+          "type": "stat",
+          "gridPos": {"x": 4, "y": 1, "w": 4, "h": 4},
+          "targets": [
+            {
+              "expr": "sum(pve_up{cluster=\"$cluster\", id=~\"qemu/.*\"})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [{"color": "green", "value": null}]
+              },
+              "unit": "short"
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          }
+        },
+        {
+          "id": 3,
+          "title": "Running LXCs",
+          "type": "stat",
+          "gridPos": {"x": 8, "y": 1, "w": 4, "h": 4},
+          "targets": [
+            {
+              "expr": "sum(pve_up{cluster=\"$cluster\", id=~\"lxc/.*\"})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [{"color": "green", "value": null}]
+              },
+              "unit": "short"
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          }
+        },
+        {
+          "id": 4,
+          "title": "Cluster CPU Usage",
+          "type": "gauge",
+          "gridPos": {"x": 12, "y": 1, "w": 4, "h": 4},
+          "targets": [
+            {
+              "expr": "sum(pve_cpu_usage_ratio{cluster=\"$cluster\", id=~\"node/.*\"} * on(id, instance) group_left pve_cpu_usage_limit{cluster=\"$cluster\", id=~\"node/.*\"}) / sum(pve_cpu_usage_limit{cluster=\"$cluster\", id=~\"node/.*\"}) * 100",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 70},
+                  {"color": "red", "value": 90}
+                ]
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            }
+          },
+          "options": {
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          }
+        },
+        {
+          "id": 5,
+          "title": "Cluster Memory Usage",
+          "type": "gauge",
+          "gridPos": {"x": 16, "y": 1, "w": 4, "h": 4},
+          "targets": [
+            {
+              "expr": "sum(pve_memory_usage_bytes{cluster=\"$cluster\", id=~\"node/.*\"}) / sum(pve_memory_size_bytes{cluster=\"$cluster\", id=~\"node/.*\"}) * 100",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 70},
+                  {"color": "red", "value": 90}
+                ]
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            }
+          },
+          "options": {
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          }
+        },
+        {
+          "id": 6,
+          "title": "Cluster Disk Usage",
+          "type": "gauge",
+          "gridPos": {"x": 20, "y": 1, "w": 4, "h": 4},
+          "targets": [
+            {
+              "expr": "sum(pve_disk_usage_bytes{cluster=\"$cluster\", id=~\"node/.*\"}) / sum(pve_disk_size_bytes{cluster=\"$cluster\", id=~\"node/.*\"}) * 100",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 75},
+                  {"color": "red", "value": 90}
+                ]
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            }
+          },
+          "options": {
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          }
+        },
+        {
+          "id": 101,
+          "title": "Per-Node Resources",
+          "type": "row",
+          "gridPos": {"x": 0, "y": 5, "w": 24, "h": 1},
+          "collapsed": false
+        },
+        {
+          "id": 7,
+          "title": "Node CPU Usage %",
+          "type": "bargauge",
+          "gridPos": {"x": 0, "y": 6, "w": 8, "h": 6},
+          "targets": [
+            {
+              "expr": "pve_cpu_usage_ratio{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"} * 100",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 70},
+                  {"color": "red", "value": 90}
+                ]
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            }
+          },
+          "options": {
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "showUnfilled": true
+          }
+        },
+        {
+          "id": 8,
+          "title": "Node Memory Usage %",
+          "type": "bargauge",
+          "gridPos": {"x": 8, "y": 6, "w": 8, "h": 6},
+          "targets": [
+            {
+              "expr": "pve_memory_usage_bytes{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"} / pve_memory_size_bytes{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"} * 100",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 70},
+                  {"color": "red", "value": 90}
+                ]
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            }
+          },
+          "options": {
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "showUnfilled": true
+          }
+        },
+        {
+          "id": 9,
+          "title": "Node Root Disk Usage %",
+          "type": "bargauge",
+          "gridPos": {"x": 16, "y": 6, "w": 8, "h": 6},
+          "targets": [
+            {
+              "expr": "pve_disk_usage_bytes{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"} / pve_disk_size_bytes{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"} * 100",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 75},
+                  {"color": "red", "value": 90}
+                ]
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            }
+          },
+          "options": {
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "showUnfilled": true
+          }
+        },
+        {
+          "id": 10,
+          "title": "Node Summary",
+          "type": "table",
+          "gridPos": {"x": 0, "y": 12, "w": 24, "h": 6},
+          "targets": [
+            {
+              "expr": "pve_cpu_usage_limit{cluster=\"$cluster\", id=~\"node/.*\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "CPU_Total"
+            },
+            {
+              "expr": "pve_cpu_usage_ratio{cluster=\"$cluster\", id=~\"node/.*\"} * 100",
+              "format": "table",
+              "instant": true,
+              "refId": "CPU_Used"
+            },
+            {
+              "expr": "pve_memory_size_bytes{cluster=\"$cluster\", id=~\"node/.*\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "Mem_Total"
+            },
+            {
+              "expr": "pve_memory_usage_bytes{cluster=\"$cluster\", id=~\"node/.*\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "Mem_Used"
+            },
+            {
+              "expr": "pve_disk_size_bytes{cluster=\"$cluster\", id=~\"node/.*\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "Disk_Total"
+            },
+            {
+              "expr": "pve_disk_usage_bytes{cluster=\"$cluster\", id=~\"node/.*\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "Disk_Used"
+            },
+            {
+              "expr": "pve_uptime_seconds{cluster=\"$cluster\", id=~\"node/.*\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "Uptime"
+            }
+          ],
+          "transformations": [
+            {"id": "merge"},
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "cluster": true,
+                  "job": true,
+                  "id": true,
+                  "__name__": true
+                },
+                "indexByName": {
+                  "instance": 0,
+                  "Value #CPU_Total": 1,
+                  "Value #CPU_Used": 2,
+                  "Value #Mem_Total": 3,
+                  "Value #Mem_Used": 4,
+                  "Value #Disk_Total": 5,
+                  "Value #Disk_Used": 6,
+                  "Value #Uptime": 7
+                },
+                "renameByName": {
+                  "instance": "Node",
+                  "Value #CPU_Total": "CPU Cores",
+                  "Value #CPU_Used": "CPU Used %",
+                  "Value #Mem_Total": "Memory",
+                  "Value #Mem_Used": "Memory Used",
+                  "Value #Disk_Total": "Root Disk",
+                  "Value #Disk_Used": "Root Used",
+                  "Value #Uptime": "Uptime"
+                }
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {"fields": {}, "sort": [{"field": "Node", "desc": false}]}
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "CPU Cores"},
+                "properties": [{"id": "unit", "value": "short"}, {"id": "decimals", "value": 0}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "CPU Used %"},
+                "properties": [
+                  {"id": "unit", "value": "percent"},
+                  {"id": "decimals", "value": 1},
+                  {"id": "custom.cellOptions", "value": {"type": "color-background", "mode": "gradient"}},
+                  {"id": "thresholds", "value": {"mode": "absolute", "steps": [
+                    {"color": "green", "value": null},
+                    {"color": "yellow", "value": 70},
+                    {"color": "red", "value": 90}
+                  ]}}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Memory"},
+                "properties": [{"id": "unit", "value": "bytes"}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Memory Used"},
+                "properties": [{"id": "unit", "value": "bytes"}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Root Disk"},
+                "properties": [{"id": "unit", "value": "bytes"}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Root Used"},
+                "properties": [{"id": "unit", "value": "bytes"}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Uptime"},
+                "properties": [{"id": "unit", "value": "s"}]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "sortBy": [{"desc": false, "displayName": "Node"}]
+          }
+        },
+        {
+          "id": 102,
+          "title": "Trends",
+          "type": "row",
+          "gridPos": {"x": 0, "y": 18, "w": 24, "h": 1},
+          "collapsed": false
+        },
+        {
+          "id": 11,
+          "title": "Node CPU Usage Over Time",
+          "type": "timeseries",
+          "gridPos": {"x": 0, "y": 19, "w": 12, "h": 8},
+          "targets": [
+            {
+              "expr": "pve_cpu_usage_ratio{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"} * 100",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisPlacement": "auto",
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "showPoints": "never",
+                "spanNulls": true
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            }
+          },
+          "options": {
+            "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom"},
+            "tooltip": {"mode": "multi"}
+          }
+        },
+        {
+          "id": 12,
+          "title": "Node Memory Usage Over Time",
+          "type": "timeseries",
+          "gridPos": {"x": 12, "y": 19, "w": 12, "h": 8},
+          "targets": [
+            {
+              "expr": "pve_memory_usage_bytes{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"}",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisPlacement": "auto",
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "showPoints": "never",
+                "spanNulls": true
+              },
+              "unit": "bytes"
+            }
+          },
+          "options": {
+            "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom"},
+            "tooltip": {"mode": "multi"}
+          }
+        },
+        {
+          "id": 13,
+          "title": "Network Receive",
+          "type": "timeseries",
+          "gridPos": {"x": 0, "y": 27, "w": 12, "h": 8},
+          "targets": [
+            {
+              "expr": "rate(pve_network_receive_bytes{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"}[5m])",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisPlacement": "auto",
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "showPoints": "never",
+                "spanNulls": true
+              },
+              "unit": "Bps"
+            }
+          },
+          "options": {
+            "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom"},
+            "tooltip": {"mode": "multi"}
+          }
+        },
+        {
+          "id": 14,
+          "title": "Network Transmit",
+          "type": "timeseries",
+          "gridPos": {"x": 12, "y": 27, "w": 12, "h": 8},
+          "targets": [
+            {
+              "expr": "rate(pve_network_transmit_bytes{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"}[5m])",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisPlacement": "auto",
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "showPoints": "never",
+                "spanNulls": true
+              },
+              "unit": "Bps"
+            }
+          },
+          "options": {
+            "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom"},
+            "tooltip": {"mode": "multi"}
+          }
+        },
+        {
+          "id": 103,
+          "title": "Guests",
+          "type": "row",
+          "gridPos": {"x": 0, "y": 35, "w": 24, "h": 1},
+          "collapsed": false
+        },
+        {
+          "id": 15,
+          "title": "Guests",
+          "type": "table",
+          "gridPos": {"x": 0, "y": 36, "w": 24, "h": 10},
+          "targets": [
+            {
+              "expr": "pve_guest_info{cluster=\"$cluster\", node=~\"$instance\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "Info"
+            },
+            {
+              "expr": "pve_up{cluster=\"$cluster\", id=~\"(qemu|lxc)/.*\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "Up"
+            },
+            {
+              "expr": "pve_cpu_usage_ratio{cluster=\"$cluster\", id=~\"(qemu|lxc)/.*\"} * 100",
+              "format": "table",
+              "instant": true,
+              "refId": "CPU"
+            },
+            {
+              "expr": "pve_memory_usage_bytes{cluster=\"$cluster\", id=~\"(qemu|lxc)/.*\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "MemUsed"
+            },
+            {
+              "expr": "pve_memory_size_bytes{cluster=\"$cluster\", id=~\"(qemu|lxc)/.*\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "MemTotal"
+            }
+          ],
+          "transformations": [
+            {"id": "merge"},
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "cluster": true,
+                  "job": true,
+                  "__name__": true,
+                  "instance": true,
+                  "template": true,
+                  "tags": true,
+                  "Value #Info": true
+                },
+                "indexByName": {
+                  "id": 0,
+                  "name": 1,
+                  "type": 2,
+                  "node": 3,
+                  "Value #Up": 4,
+                  "Value #CPU": 5,
+                  "Value #MemUsed": 6,
+                  "Value #MemTotal": 7
+                },
+                "renameByName": {
+                  "id": "ID",
+                  "name": "Name",
+                  "type": "Type",
+                  "node": "Node",
+                  "Value #Up": "Up",
+                  "Value #CPU": "CPU %",
+                  "Value #MemUsed": "Memory Used",
+                  "Value #MemTotal": "Memory"
+                }
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {"fields": {}, "sort": [{"field": "Node", "desc": false}, {"field": "Name", "desc": false}]}
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "Up"},
+                "properties": [
+                  {"id": "mappings", "value": [
+                    {"type": "value", "options": {"0": {"text": "stopped", "color": "red"}, "1": {"text": "running", "color": "green"}}}
+                  ]},
+                  {"id": "custom.cellOptions", "value": {"type": "color-text"}}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "CPU %"},
+                "properties": [
+                  {"id": "unit", "value": "percent"},
+                  {"id": "decimals", "value": 1},
+                  {"id": "custom.cellOptions", "value": {"type": "color-background", "mode": "gradient"}},
+                  {"id": "thresholds", "value": {"mode": "absolute", "steps": [
+                    {"color": "green", "value": null},
+                    {"color": "yellow", "value": 70},
+                    {"color": "red", "value": 90}
+                  ]}}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Memory Used"},
+                "properties": [{"id": "unit", "value": "bytes"}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Memory"},
+                "properties": [{"id": "unit", "value": "bytes"}]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "sortBy": [{"desc": false, "displayName": "Node"}]
+          }
+        },
+        {
+          "id": 104,
+          "title": "Storage",
+          "type": "row",
+          "gridPos": {"x": 0, "y": 46, "w": 24, "h": 1},
+          "collapsed": false
+        },
+        {
+          "id": 16,
+          "title": "Storage Usage",
+          "type": "table",
+          "gridPos": {"x": 0, "y": 47, "w": 24, "h": 8},
+          "targets": [
+            {
+              "expr": "pve_disk_size_bytes{cluster=\"$cluster\", id=~\"storage/.*\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "Total"
+            },
+            {
+              "expr": "pve_disk_usage_bytes{cluster=\"$cluster\", id=~\"storage/.*\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "Used"
+            }
+          ],
+          "transformations": [
+            {"id": "merge"},
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "cluster": true,
+                  "job": true,
+                  "instance": true,
+                  "__name__": true
+                },
+                "indexByName": {
+                  "id": 0,
+                  "Value #Used": 1,
+                  "Value #Total": 2
+                },
+                "renameByName": {
+                  "id": "Storage",
+                  "Value #Used": "Used",
+                  "Value #Total": "Total"
+                }
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {"fields": {}, "sort": [{"field": "Storage", "desc": false}]}
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "Used"},
+                "properties": [
+                  {"id": "unit", "value": "bytes"},
+                  {"id": "custom.cellOptions", "value": {"type": "color-background", "mode": "gradient"}}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Total"},
+                "properties": [{"id": "unit", "value": "bytes"}]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "sortBy": [{"desc": false, "displayName": "Storage"}]
+          }
+        }
+      ]
+    }

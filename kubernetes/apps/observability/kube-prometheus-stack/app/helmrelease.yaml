@@ -92,10 +92,26 @@ spec:
             scheme: https
             tls_config:
               insecure_skip_verify: true
+            # Main cluster's node-exporter job collides with this cluster's own;
+            # rename it so dashboards/alerts can target main cluster nodes distinctly
+            metric_relabel_configs:
+              - source_labels: [job]
+                regex: node-exporter
+                target_label: job
+                replacement: main-nodes
 
     # Node exporter
     prometheus-node-exporter:
       fullnameOverride: node-exporter
+      prometheus:
+        monitor:
+          # Rename the bundled ServiceMonitor's job (default: node-exporter) so
+          # the observability cluster's own nodes are distinct from main/proxmox
+          relabelings:
+            - targetLabel: job
+              replacement: observability-nodes
+            - targetLabel: cluster
+              replacement: observability
       resources:
         requests:
           cpu: 100m

@@ -13,7 +13,7 @@ spec:
       interval: 30s
       rules:
         - alert: NodeDown
-          expr: up{job="node-exporter", cluster="main"} == 0
+          expr: up{job="main-nodes"} == 0
           for: 5m
           labels:
             severity: critical

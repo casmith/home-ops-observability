@@ -26,6 +26,10 @@ spec:
       labels:
         instance: pve5
         cluster: proxmox
+  # Override the auto-generated job name (scrapeConfig/observability/proxmox-node-exporter)
+  relabelings:
+    - targetLabel: job
+      replacement: proxmox-nodes
 ---
 apiVersion: monitoring.coreos.com/v1alpha1
 kind: ScrapeConfig
@@ -49,3 +53,5 @@ spec:
       replacement: "192.168.10.11:9221"
     - targetLabel: cluster
       replacement: proxmox
+    - targetLabel: job
+      replacement: proxmox-pve
