@@ -38,20 +38,18 @@ metadata:
   namespace: observability
 spec:
   metricsPath: /pve
+  # pve-exporter returns cluster-wide metrics regardless of target, so one
+  # scrape against any cluster member is enough. The exporter still requires
+  # a target param to know which API endpoint to dial.
   params:
     module: ["default"]
+    target: ["pve1"]
   staticConfigs:
-    - targets: ["pve1", "pve2", "pve3", "pve4", "pve5"]
-  # Query each PVE host via pve1's local pve-exporter (the targets above are
-  # passed as ?target=<host> to the exporter, not scraped directly).
+    - targets: ["192.168.10.11:9221"]
   relabelings:
-    - sourceLabels: [__address__]
-      targetLabel: __param_target
-    - sourceLabels: [__param_target]
-      targetLabel: instance
-    - targetLabel: __address__
-      replacement: "192.168.10.11:9221"
     - targetLabel: cluster
       replacement: proxmox
     - targetLabel: job
       replacement: proxmox-pve
+    - targetLabel: instance
+      replacement: pve-cluster

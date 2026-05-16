@@ -33,9 +33,10 @@ spec:
             "label": "Cluster"
           },
           {
-            "name": "instance",
+            "name": "node",
             "type": "query",
-            "query": "label_values(pve_up{cluster=\"$cluster\"}, instance)",
+            "query": "label_values(pve_up{cluster=\"$cluster\", id=~\"node/.*\"}, id)",
+            "regex": "/node\\/(.*)/",
             "refresh": 2,
             "includeAll": true,
             "multi": true,
@@ -147,7 +148,7 @@ spec:
           "gridPos": {"x": 12, "y": 1, "w": 4, "h": 4},
           "targets": [
             {
-              "expr": "sum(pve_cpu_usage_ratio{cluster=\"$cluster\", id=~\"node/.*\"} * on(id, instance) group_left pve_cpu_usage_limit{cluster=\"$cluster\", id=~\"node/.*\"}) / sum(pve_cpu_usage_limit{cluster=\"$cluster\", id=~\"node/.*\"}) * 100",
+              "expr": "sum(pve_cpu_usage_ratio{cluster=\"$cluster\", id=~\"node/.*\"} * on(id) group_left pve_cpu_usage_limit{cluster=\"$cluster\", id=~\"node/.*\"}) / sum(pve_cpu_usage_limit{cluster=\"$cluster\", id=~\"node/.*\"}) * 100",
               "refId": "A"
             }
           ],
@@ -253,8 +254,8 @@ spec:
           "gridPos": {"x": 0, "y": 6, "w": 8, "h": 6},
           "targets": [
             {
-              "expr": "pve_cpu_usage_ratio{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"} * 100",
-              "legendFormat": "{{instance}}",
+              "expr": "label_replace(pve_cpu_usage_ratio{cluster=\"$cluster\", id=~\"node/($node)\"}, \"node\", \"$1\", \"id\", \"node/(.+)\") * 100",
+              "legendFormat": "{{node}}",
               "refId": "A"
             }
           ],
@@ -288,8 +289,8 @@ spec:
           "gridPos": {"x": 8, "y": 6, "w": 8, "h": 6},
           "targets": [
             {
-              "expr": "pve_memory_usage_bytes{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"} / pve_memory_size_bytes{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"} * 100",
-              "legendFormat": "{{instance}}",
+              "expr": "label_replace(pve_memory_usage_bytes{cluster=\"$cluster\", id=~\"node/($node)\"} / on(id) pve_memory_size_bytes{cluster=\"$cluster\", id=~\"node/($node)\"} * 100, \"node\", \"$1\", \"id\", \"node/(.+)\")",
+              "legendFormat": "{{node}}",
               "refId": "A"
             }
           ],
@@ -323,8 +324,8 @@ spec:
           "gridPos": {"x": 16, "y": 6, "w": 8, "h": 6},
           "targets": [
             {
-              "expr": "pve_disk_usage_bytes{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"} / pve_disk_size_bytes{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"} * 100",
-              "legendFormat": "{{instance}}",
+              "expr": "label_replace(pve_disk_usage_bytes{cluster=\"$cluster\", id=~\"node/($node)\"} / on(id) pve_disk_size_bytes{cluster=\"$cluster\", id=~\"node/($node)\"} * 100, \"node\", \"$1\", \"id\", \"node/(.+)\")",
+              "legendFormat": "{{node}}",
               "refId": "A"
             }
           ],
@@ -358,43 +359,43 @@ spec:
           "gridPos": {"x": 0, "y": 12, "w": 24, "h": 6},
           "targets": [
             {
-              "expr": "pve_cpu_usage_limit{cluster=\"$cluster\", id=~\"node/.*\"}",
+              "expr": "label_replace(pve_cpu_usage_limit{cluster=\"$cluster\", id=~\"node/.*\"}, \"node\", \"$1\", \"id\", \"node/(.+)\")",
               "format": "table",
               "instant": true,
               "refId": "CPU_Total"
             },
             {
-              "expr": "pve_cpu_usage_ratio{cluster=\"$cluster\", id=~\"node/.*\"} * 100",
+              "expr": "label_replace(pve_cpu_usage_ratio{cluster=\"$cluster\", id=~\"node/.*\"} * 100, \"node\", \"$1\", \"id\", \"node/(.+)\")",
               "format": "table",
               "instant": true,
               "refId": "CPU_Used"
             },
             {
-              "expr": "pve_memory_size_bytes{cluster=\"$cluster\", id=~\"node/.*\"}",
+              "expr": "label_replace(pve_memory_size_bytes{cluster=\"$cluster\", id=~\"node/.*\"}, \"node\", \"$1\", \"id\", \"node/(.+)\")",
               "format": "table",
               "instant": true,
               "refId": "Mem_Total"
             },
             {
-              "expr": "pve_memory_usage_bytes{cluster=\"$cluster\", id=~\"node/.*\"}",
+              "expr": "label_replace(pve_memory_usage_bytes{cluster=\"$cluster\", id=~\"node/.*\"}, \"node\", \"$1\", \"id\", \"node/(.+)\")",
               "format": "table",
               "instant": true,
               "refId": "Mem_Used"
             },
             {
-              "expr": "pve_disk_size_bytes{cluster=\"$cluster\", id=~\"node/.*\"}",
+              "expr": "label_replace(pve_disk_size_bytes{cluster=\"$cluster\", id=~\"node/.*\"}, \"node\", \"$1\", \"id\", \"node/(.+)\")",
               "format": "table",
               "instant": true,
               "refId": "Disk_Total"
             },
             {
-              "expr": "pve_disk_usage_bytes{cluster=\"$cluster\", id=~\"node/.*\"}",
+              "expr": "label_replace(pve_disk_usage_bytes{cluster=\"$cluster\", id=~\"node/.*\"}, \"node\", \"$1\", \"id\", \"node/(.+)\")",
               "format": "table",
               "instant": true,
               "refId": "Disk_Used"
             },
             {
-              "expr": "pve_uptime_seconds{cluster=\"$cluster\", id=~\"node/.*\"}",
+              "expr": "label_replace(pve_uptime_seconds{cluster=\"$cluster\", id=~\"node/.*\"}, \"node\", \"$1\", \"id\", \"node/(.+)\")",
               "format": "table",
               "instant": true,
               "refId": "Uptime"
@@ -408,12 +409,13 @@ spec:
                 "excludeByName": {
                   "Time": true,
                   "cluster": true,
+                  "instance": true,
                   "job": true,
                   "id": true,
                   "__name__": true
                 },
                 "indexByName": {
-                  "instance": 0,
+                  "node": 0,
                   "Value #CPU_Total": 1,
                   "Value #CPU_Used": 2,
                   "Value #Mem_Total": 3,
@@ -423,7 +425,7 @@ spec:
                   "Value #Uptime": 7
                 },
                 "renameByName": {
-                  "instance": "Node",
+                  "node": "Node",
                   "Value #CPU_Total": "CPU Cores",
                   "Value #CPU_Used": "CPU Used %",
                   "Value #Mem_Total": "Memory",
@@ -500,8 +502,8 @@ spec:
           "gridPos": {"x": 0, "y": 19, "w": 12, "h": 8},
           "targets": [
             {
-              "expr": "pve_cpu_usage_ratio{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"} * 100",
-              "legendFormat": "{{instance}}",
+              "expr": "label_replace(pve_cpu_usage_ratio{cluster=\"$cluster\", id=~\"node/($node)\"}, \"node\", \"$1\", \"id\", \"node/(.+)\") * 100",
+              "legendFormat": "{{node}}",
               "refId": "A"
             }
           ],
@@ -535,8 +537,8 @@ spec:
           "gridPos": {"x": 12, "y": 19, "w": 12, "h": 8},
           "targets": [
             {
-              "expr": "pve_memory_usage_bytes{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"}",
-              "legendFormat": "{{instance}}",
+              "expr": "label_replace(pve_memory_usage_bytes{cluster=\"$cluster\", id=~\"node/($node)\"}, \"node\", \"$1\", \"id\", \"node/(.+)\")",
+              "legendFormat": "{{node}}",
               "refId": "A"
             }
           ],
@@ -568,8 +570,8 @@ spec:
           "gridPos": {"x": 0, "y": 27, "w": 12, "h": 8},
           "targets": [
             {
-              "expr": "rate(pve_network_receive_bytes{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"}[5m])",
-              "legendFormat": "{{instance}}",
+              "expr": "label_replace(rate(pve_network_receive_bytes{cluster=\"$cluster\", id=~\"node/($node)\"}[5m]), \"node\", \"$1\", \"id\", \"node/(.+)\")",
+              "legendFormat": "{{node}}",
               "refId": "A"
             }
           ],
@@ -600,8 +602,8 @@ spec:
           "gridPos": {"x": 12, "y": 27, "w": 12, "h": 8},
           "targets": [
             {
-              "expr": "rate(pve_network_transmit_bytes{cluster=\"$cluster\", id=~\"node/.*\", instance=~\"$instance\"}[5m])",
-              "legendFormat": "{{instance}}",
+              "expr": "label_replace(rate(pve_network_transmit_bytes{cluster=\"$cluster\", id=~\"node/($node)\"}[5m]), \"node\", \"$1\", \"id\", \"node/(.+)\")",
+              "legendFormat": "{{node}}",
               "refId": "A"
             }
           ],
@@ -639,31 +641,31 @@ spec:
           "gridPos": {"x": 0, "y": 36, "w": 24, "h": 10},
           "targets": [
             {
-              "expr": "pve_guest_info{cluster=\"$cluster\", node=~\"$instance\"}",
+              "expr": "pve_guest_info{cluster=\"$cluster\", node=~\"$node\"}",
               "format": "table",
               "instant": true,
               "refId": "Info"
             },
             {
-              "expr": "pve_up{cluster=\"$cluster\", id=~\"(qemu|lxc)/.*\"}",
+              "expr": "pve_up{cluster=\"$cluster\", id=~\"(qemu|lxc)/.*\"} * on(id) group_left() (pve_guest_info{cluster=\"$cluster\", node=~\"$node\"} * 0 + 1)",
               "format": "table",
               "instant": true,
               "refId": "Up"
             },
             {
-              "expr": "pve_cpu_usage_ratio{cluster=\"$cluster\", id=~\"(qemu|lxc)/.*\"} * 100",
+              "expr": "pve_cpu_usage_ratio{cluster=\"$cluster\", id=~\"(qemu|lxc)/.*\"} * on(id) group_left() (pve_guest_info{cluster=\"$cluster\", node=~\"$node\"} * 0 + 1) * 100",
               "format": "table",
               "instant": true,
               "refId": "CPU"
             },
             {
-              "expr": "pve_memory_usage_bytes{cluster=\"$cluster\", id=~\"(qemu|lxc)/.*\"}",
+              "expr": "pve_memory_usage_bytes{cluster=\"$cluster\", id=~\"(qemu|lxc)/.*\"} * on(id) group_left() (pve_guest_info{cluster=\"$cluster\", node=~\"$node\"} * 0 + 1)",
               "format": "table",
               "instant": true,
               "refId": "MemUsed"
             },
             {
-              "expr": "pve_memory_size_bytes{cluster=\"$cluster\", id=~\"(qemu|lxc)/.*\"}",
+              "expr": "pve_memory_size_bytes{cluster=\"$cluster\", id=~\"(qemu|lxc)/.*\"} * on(id) group_left() (pve_guest_info{cluster=\"$cluster\", node=~\"$node\"} * 0 + 1)",
               "format": "table",
               "instant": true,
               "refId": "MemTotal"
@@ -765,13 +767,13 @@ spec:
           "gridPos": {"x": 0, "y": 47, "w": 24, "h": 8},
           "targets": [
             {
-              "expr": "pve_disk_size_bytes{cluster=\"$cluster\", id=~\"storage/.*\"}",
+              "expr": "label_replace(label_replace(pve_disk_size_bytes{cluster=\"$cluster\", id=~\"storage/.*\"}, \"node\", \"$1\", \"id\", \"storage/([^/]+)/.+\"), \"storage\", \"$1\", \"id\", \"storage/[^/]+/(.+)\")",
               "format": "table",
               "instant": true,
               "refId": "Total"
             },
             {
-              "expr": "pve_disk_usage_bytes{cluster=\"$cluster\", id=~\"storage/.*\"}",
+              "expr": "label_replace(label_replace(pve_disk_usage_bytes{cluster=\"$cluster\", id=~\"storage/.*\"}, \"node\", \"$1\", \"id\", \"storage/([^/]+)/.+\"), \"storage\", \"$1\", \"id\", \"storage/[^/]+/(.+)\")",
               "format": "table",
               "instant": true,
               "refId": "Used"
@@ -787,15 +789,18 @@ spec:
                   "cluster": true,
                   "job": true,
                   "instance": true,
+                  "id": true,
                   "__name__": true
                 },
                 "indexByName": {
-                  "id": 0,
-                  "Value #Used": 1,
-                  "Value #Total": 2
+                  "node": 0,
+                  "storage": 1,
+                  "Value #Used": 2,
+                  "Value #Total": 3
                 },
                 "renameByName": {
-                  "id": "Storage",
+                  "node": "Node",
+                  "storage": "Storage",
                   "Value #Used": "Used",
                   "Value #Total": "Total"
                 }
@@ -803,7 +808,7 @@ spec:
             },
             {
               "id": "sortBy",
-              "options": {"fields": {}, "sort": [{"field": "Storage", "desc": false}]}
+              "options": {"fields": {}, "sort": [{"field": "Node", "desc": false}, {"field": "Storage", "desc": false}]}
             }
           ],
           "fieldConfig": {
@@ -824,7 +829,7 @@ spec:
           },
           "options": {
             "showHeader": true,
-            "sortBy": [{"desc": false, "displayName": "Storage"}]
+            "sortBy": [{"desc": false, "displayName": "Node"}]
           }
         }
       ]
