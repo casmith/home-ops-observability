@@ -1,0 +1,53 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: persistentvolume-alerts
+  namespace: observability
+  labels:
+    prometheus: kube-prometheus-stack
+    role: alert-rules
+spec:
+  groups:
+    - name: persistentvolume.rules
+      interval: 30s
+      rules:
+        - alert: KubePersistentVolumeFillingUp
+          expr: |-
+            (
+              (
+                kubelet_volume_stats_available_bytes{job="kubelet", metrics_path="/metrics"}
+                  /
+                kubelet_volume_stats_capacity_bytes{job="kubelet", metrics_path="/metrics"}
+                  * 100 < 15
+              )
+              and
+              predict_linear(kubelet_volume_stats_available_bytes{job="kubelet", metrics_path="/metrics"}[6h], 4 * 24 * 3600) < 0
+              and
+              kubelet_volume_stats_used_bytes{job="kubelet", metrics_path="/metrics"} > 0
+            )
+            and on(cluster, namespace, persistentvolumeclaim)
+            kube_persistentvolumeclaim_info{storageclass!~"^(|nfs-client)$"}
+            or
+            (
+              (
+                kubelet_volume_stats_available_bytes{job="kubelet", metrics_path="/metrics"}
+                  /
+                kubelet_volume_stats_capacity_bytes{job="kubelet", metrics_path="/metrics"}
+                  * 100 < 15
+              )
+              and
+              kubelet_volume_stats_available_bytes{job="kubelet", metrics_path="/metrics"} < 536870912000
+              and
+              predict_linear(kubelet_volume_stats_available_bytes{job="kubelet", metrics_path="/metrics"}[6h], 4 * 24 * 3600) < 0
+              and
+              kubelet_volume_stats_used_bytes{job="kubelet", metrics_path="/metrics"} > 0
+            )
+            and on(cluster, namespace, persistentvolumeclaim)
+            kube_persistentvolumeclaim_info{storageclass=~"^(|nfs-client)$"}
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "PersistentVolume is filling up"
+            description: "PersistentVolume claimed by {{ $labels.persistentvolumeclaim }} in namespace {{ $labels.namespace }} is projected to fill within four days. NFS-backed/static PVCs must also be below 500Gi free before this alert fires; Longhorn and other storage classes keep the stock behavior. Currently {{ $value | humanize }}% is available."

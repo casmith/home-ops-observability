@@ -144,6 +144,9 @@ spec:
         InfoInhibitor: true
         Watchdog: true
         PrometheusOutOfOrderTimestamps: true
+        # Replaced by rules/persistentvolume-alerts.yaml with an absolute
+        # free-space floor to avoid noisy alerts on large shared NFS volumes.
+        KubePersistentVolumeFillingUp: true
 
     # Disable Grafana (we'll deploy separately)
     grafana:
