@@ -28,39 +28,19 @@ spec:
         # SQLite on NFS: single writer only, so never run two pods at once.
         strategy: Recreate
         initContainers:
-          bootstrap:
+          # attachment-cache-dir must already exist when the server starts.
+          # User bootstrap cannot happen here: `ntfy user add` refuses to run
+          # until the auth database exists, and only the server creates it.
+          # See the postStart hook on the app container below.
+          init-dirs:
             image:
               repository: docker.io/binwiederhier/ntfy
               tag: v2.26.3
-            # Flags are passed explicitly rather than via NTFY_* env so there is
-            # no precedence question against the image's /etc/ntfy/server.yml.
             command:
               - /bin/sh
               - -c
             args:
-              - |
-                set -eu
-                mkdir -p /var/lib/ntfy/attachments
-
-                AUTH="--auth-file=/var/lib/ntfy/user.db"
-
-                # Admin account for the iOS app and web UI.
-                NTFY_PASSWORD="${NTFY_ADMIN_PASSWORD}" \
-                  ntfy user ${AUTH} add --ignore-exists --role=admin "${NTFY_ADMIN_USER}"
-                NTFY_PASSWORD="${NTFY_ADMIN_PASSWORD}" \
-                  ntfy user ${AUTH} change-pass "${NTFY_ADMIN_USER}"
-
-                # Publisher for Alertmanager and Uptime Kuma.
-                NTFY_PASSWORD="${NTFY_PUBLISHER_PASSWORD}" \
-                  ntfy user ${AUTH} add --ignore-exists --role=user "${NTFY_PUBLISHER_USER}"
-                NTFY_PASSWORD="${NTFY_PUBLISHER_PASSWORD}" \
-                  ntfy user ${AUTH} change-pass "${NTFY_PUBLISHER_USER}"
-                ntfy access ${AUTH} "${NTFY_PUBLISHER_USER}" 'obs-*' write-only
-
-                echo "ntfy bootstrap complete"
-            envFrom:
-              - secretRef:
-                  name: ntfy-secret
+              - mkdir -p /var/lib/ntfy/attachments
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false
@@ -99,6 +79,46 @@ spec:
               NTFY_ENABLE_LOGIN: "true"
               NTFY_ENABLE_RESERVATIONS: "false"
               NTFY_LOG_LEVEL: info
+            # Account credentials. The CLI reads NTFY_AUTH_FILE from the env
+            # above; the *_USER/*_PASSWORD keys are consumed only by the
+            # postStart script and are not ntfy config options.
+            envFrom:
+              - secretRef:
+                  name: ntfy-secret
+            # Applied after startup because the server owns creation of the auth
+            # database. Idempotent, so it is safe on every restart, and
+            # change-pass means rotating the SOPS secret re-applies the password.
+            # A failure here kills the container rather than leaving ntfy up with
+            # unconfigured accounts.
+            lifecycle:
+              postStart:
+                exec:
+                  command:
+                    - /bin/sh
+                    - -c
+                    - |
+                      set -eu
+                      for _ in $(seq 1 60); do
+                        [ -f /var/lib/ntfy/user.db ] && break
+                        sleep 1
+                      done
+                      if [ ! -f /var/lib/ntfy/user.db ]; then
+                        echo "auth database never appeared; did the server start?" >&2
+                        exit 1
+                      fi
+
+                      NTFY_PASSWORD="${NTFY_ADMIN_PASSWORD}" \
+                        ntfy user add --ignore-exists --role=admin "${NTFY_ADMIN_USER}"
+                      NTFY_PASSWORD="${NTFY_ADMIN_PASSWORD}" \
+                        ntfy user change-pass "${NTFY_ADMIN_USER}"
+
+                      NTFY_PASSWORD="${NTFY_PUBLISHER_PASSWORD}" \
+                        ntfy user add --ignore-exists --role=user "${NTFY_PUBLISHER_USER}"
+                      NTFY_PASSWORD="${NTFY_PUBLISHER_PASSWORD}" \
+                        ntfy user change-pass "${NTFY_PUBLISHER_USER}"
+                      ntfy access "${NTFY_PUBLISHER_USER}" 'obs-*' write-only
+
+                      echo "ntfy bootstrap complete"
             probes:
               startup:
                 enabled: true
