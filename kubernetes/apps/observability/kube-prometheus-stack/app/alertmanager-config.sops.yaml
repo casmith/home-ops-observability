@@ -1,6 +1,15 @@
-# Alertmanager -> ntfy configuration.
-# Publishes over in-cluster Service DNS, so the alert path needs no DNS, no TLS
-# and no internet. Formatting and priority come from the obs-alert template in
+# Alertmanager notification config.
+#
+# ntfy and Discord run in parallel during the ntfy soak period. Both live in a
+# single receiver on purpose: Alertmanager fans a receiver's integrations out
+# independently, each with its own retry pipeline, and the notification log
+# records delivery per integration. So a failing ntfy neither blocks Discord
+# nor suppresses it through dedup.
+#
+# Retire Discord by deleting the slack_configs block below once ntfy has proven
+# itself. See the "Exit criteria" note in PR #56.
+#
+# ntfy formatting and priority come from the obs-alert template in
 # observability/ntfy/app/configmap-templates.yaml.
 #
 # NOTE: the basic_auth password is NTFY_PUBLISHER_PASSWORD from
@@ -14,20 +23,20 @@ metadata:
   namespace: observability
 type: Opaque
 stringData:
-  alertmanager.yaml: ENC[AES256_GCM,data:tex8r5Era13sS5HrbCRw/G8c5kCpCazj3libI0ZSCN1KHyjKOtga2aObmZb3M1Ozl/wRtIRvza3m1ReAw1gEkIioVtmhaBtRWhd+V4fR2gJeEChYbMlfWq+f/X2OQ0rrhzKvKjotwPsevrI/YdLOKHke1ONx4uK2lfOtmB+H+Z7zH0S02/36CMbex6KsnfKxifeS2jEYhZQ/rvGiyrWBS9cv0ab8un30UyYuPiMs2PCgqNDJjVlbIdqu+DeGDLSQgk+ZNedXVC2PFOeARj5sSjxvwSsNOVpGWY/UMvQjXQ9N8jdE+ZgAp4wJY2dCBofXEbb+A7uqvThseLi0S6gK6sDyCVVjw4uLeixQqK82MoSpSRcbeWpKZIcZ4kqD/asSoSMWjhc+pl+R0L51n5WJgBHCztwlGh7a3jBvvB6DVl/XSa8Z1d84znSRgEHl+QicW9ATh73U7UY4kRfQpJn3uetwthExXUWdAONFdzde0n464Sq6/6N9jhCFzx+TRzM9WxVOt1P/6bUrGAliuF744zWS4mUfhfOUxMDe+hShQKSaUXyU0SbckQhwLWgE5Thz6UoG42Du/Fbgn79T9IFI4vpgF5D87aNZeasQJnMEfYL8kKdNXhCweYIeydcjCBnK9VKIRX8Pq+hec+HUtr/T4FTfCziw0L909M6KD4g5V6kg/EQ4xBm9wwkHx5Ui1V2vBVd+,iv:SQTnVPnZNXKDKKoBnUrXwyWBKEIJdelFacDrJJdEsXw=,tag:IDhr9vHFeBdLLrbCVbg37Q==,type:str]
+  alertmanager.yaml: ENC[AES256_GCM,data:5EAK7bl9U8d8urxf3k3lsb+aE+eDQezAKPfjI8dHHN8SjVd8u0ScPV2x0FCB5oU7yj17ibuShO9OY7d6WLUmAbteB9J2imYPw2M4X1a8aJYq9Ipu05l622fOCYUbuJNMfKEd6J6lUO9LLKNG/8WOmZ+ZfIn/Uunz5HSBspGJzKR4w/T+xhXNfSNJoJ9eSy99y6rLM1ENUFVMsTMrKcm9zxpbyd1kqO41/C9C49fIoj63GPnoV/lOPJWX+5IbIiclkWqNQaay1ppiv4FUV4MD7JNLpmSeMcc1Tywikz5Vr8gUZVnq1YUwcpsLp7IeNopJv/pyw+2sUcwK6V/Z6jOsoryYDKyH80INpuXnG9gUm0t98bqRDIR/e0TJIKcbGZXawF0JeI+1hQEJNglr6r80T8hhxmt+qz001i7jSUvfh6SRIN3qkMnevmJaeLDdKz1/9ZzjoQq5EVyRP/NCZq311dmfymvuf4DKrSLNAmCTMSUhOAtY3IO7ZcJP8Md3khR2qRfnJRSLS/ZN3JdC1mz1SmOHaYLE/NV6tBkoPbjfKMHBDmVkCXznR876W1cHKBl1czEqVVG0uPSeyqdJx+2Zh2cwyAupMXex0eJ+EHMxH+pVR6eAuD4JIdoA2z2CvKugz9FAYLv/mQrk6vfmiyLMkssxUGF1ciVBNbslmAgyKBIVR/kkpzwv9Kq1HGONvMGsZp/HWtJ6GubZ1athITVQIG4JBZ+eXGdWjQ/mrw+DNB9rJP8mnkrUKW59wdyhZTtvIXPYLO2CvmoFdk5n1nb485Nd7z14wa4oCL1KJgyY13MIZMKuwVljtcmmW1OGudqrm6Ury1EprVoQxmtvuqt3QWXQBrFP5SRrsA0ou3AJJ1unuUwXGhnZLV/YX57/VSlR31uyKEbNaClULuQ3uP+FoKzmk+jYmJbZfg6bO7WTyPPrQBDmC3TwVgyiXEBTABnJKe/DFVw/tOjLWDdj2M4LKrxoxjhcnFU9TqRWiTz2mRGobGADUeUwo42YAZVIxEwZhi5A7BdqFDgIIboPpub3DV50JOtPAvkqQ3Wr6nI3Oee/nUbJrXgzTVDlKhxQUGzQ1crO4uS1mmtLXqDSRAZP0mkH4Gp/h4xteApbXWi74mPBHzPwsMXpYOv22CjUkXxW7JjdMYV+eSXdjAv4DfUEMHAAROCcaL5fVCo8mhtNnhp+8r+Hm+MHJhjNOmNBgKU/nAAlzDkRd1VzwjyTotp6nkqvdzE5e1HC5K1Pv7Wvtr578W15XPkRn8+kw4nbuxsV+qfszRLqwlC89I74LDOISFS2QqL1gh5EsUnZ86Ei7Y0NQWv0JdfAM/QncfwQK3yq4iNYe13LUlH0qtTVGlJBNNVozM7PGJC5G+jCtgoZyMgae9YoZyc9/B1st/4hjSYEsEMjlp68RdXvc+80aZCGbcTcArh2kbEYaQubGqsTSE/JkQIyrNPtH+lKroazWN1n3h46a9/Zs7UXSBw1z1YDG+s+z83HmvlZbV2gxqoKOgVnm7KrV0undUvCy3r2qdl2FGJDA8yHli+7PjgQkyPuPF+ndxwS01oMufbnzxOrIoZ6oFXsKskD0s30dWXNeKYeDBd9fxi9BETr3cL25AU47RPZWRtjZr6FAUBI+KPZCefbgna0leH2qOF7,iv:c2RxVayXA6DdiOSfq9eJ13t2Gz4sZA+ovNHJ5TdQh6Q=,tag:k3H/x3fqeNPRI1cjlqf81Q==,type:str]
 sops:
   age:
     - enc: |
         -----BEGIN AGE ENCRYPTED FILE-----
-        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBNNXZtcWI4aXJ6UDByMWh0
-        K3dHTEpSOU1hRGVDYlRvelJkeEFHVTNFVDB3CkltYzVMelZPbGJSYTE4RkZmUHdw
-        NlJSNlZxYlpZa2h6RWc3cFNSb0FjRzAKLS0tIEsxZnY5QTlDOWx6a1BrTXNRdjlO
-        WjFRaURlenphODN3azRkWWx4QkFmUHcKp14lhDZ3snIV1MUOsF9WOb0wTXnQnZIg
-        ieLJrFiEQPh06/X3sR/p68x6QEQoNZe4lYyok8oSYejLQlVT+3fXUw==
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBBaDF6SjF1V2NaUlRmNUtI
+        UEZXVGZoS1c2VDhoc3F5RXozYmhVa0dCV21BCkNwWmtpSkJsdExOOW9PcFo1UHc3
+        Uy8ycnp1ZDBZcENWbXZyb3BpUTgxcmcKLS0tIDhqZmRlSUF5Y2Jtczl2TmNkSGo3
+        VC9neVBzWm1mY0pRTDgyenNpNzFSYlUKBJnzGStLbSt7Ia439piOIy1Lkt63EMDQ
+        bwxpPAw0lItuIHaQ4+iQRVZgpm2xuDhHRKfCgxnrsd+C82/K3bIHWg==
         -----END AGE ENCRYPTED FILE-----
       recipient: age189gqacgyls7puscnagahv8m0synjs3v8hkn8ur8w4c56g9vpdccshj2400
   encrypted_regex: ^(data|stringData)$
-  lastmodified: "2026-08-03T15:37:40Z"
-  mac: ENC[AES256_GCM,data:jrrJGdqyKgmyR58xLMQ/YCoH8NwzJlTxI3JZbgXv08I6trkftFqUWKZ5Ho5vlTK7VzNlr0a27CvjbzlnBtJPlrT59uNCvl7mj5K3G9Qkq79sBm2VInWZppIQE7ml2RAbxT8focGGh9EC3sQ1hiO9q9BRiGZneNwW8yJilnn6PBY=,iv:+FiDyvtvwIIMHYb39CzgrmV4DkDx+SvCtLIKK5RTRIM=,tag:SFmXwkS1+9ZvFW33wMor5Q==,type:str]
+  lastmodified: "2026-08-03T17:44:46Z"
+  mac: ENC[AES256_GCM,data:xdsC41yQOfbGqAgLXQLZEaiTXbH7aWd/O9Qvuzgoj5hwZE+92Nr924ekZhfBhBGmyzrUiZFCgVMDDWtSjNZ+LY/fUDRcqcaLI7OHgc9dhKCIkIsx31mpHiFbyIEtX3LFvPY0OyeTA2EyUhyuzVR/ftBUhZAVoGNPZurB4vLNUIQ=,iv:0KgWXJTnF+D6zVXUcdgH4iFrWF8ydMyj8iemlcWT9mg=,tag:hU2Siaz3yr3IEIGG0S2J+A==,type:str]
   mac_only_encrypted: true
   version: 3.13.3
