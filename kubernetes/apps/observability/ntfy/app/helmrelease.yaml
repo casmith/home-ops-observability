@@ -90,6 +90,14 @@ spec:
             # change-pass means rotating the SOPS secret re-applies the password.
             # A failure here kills the container rather than leaving ntfy up with
             # unconfigured accounts.
+            #
+            # The credential variables are escaped as $${VAR}. This Kustomization
+            # enables postBuild.substitute, and Flux's envsubst rewrites every
+            # ${VAR} in the manifest -- including ones it has never heard of,
+            # which it replaces with an empty string. Unescaped, the container
+            # received `ntfy user add --role=admin ""` and crashlooped. The $$
+            # makes Flux emit a literal ${VAR} for the shell to expand at
+            # runtime from the envFrom secret above.
             lifecycle:
               postStart:
                 exec:
@@ -107,16 +115,16 @@ spec:
                         exit 1
                       fi
 
-                      NTFY_PASSWORD="${NTFY_ADMIN_PASSWORD}" \
-                        ntfy user add --ignore-exists --role=admin "${NTFY_ADMIN_USER}"
-                      NTFY_PASSWORD="${NTFY_ADMIN_PASSWORD}" \
-                        ntfy user change-pass "${NTFY_ADMIN_USER}"
+                      NTFY_PASSWORD="$${NTFY_ADMIN_PASSWORD}" \
+                        ntfy user add --ignore-exists --role=admin "$${NTFY_ADMIN_USER}"
+                      NTFY_PASSWORD="$${NTFY_ADMIN_PASSWORD}" \
+                        ntfy user change-pass "$${NTFY_ADMIN_USER}"
 
-                      NTFY_PASSWORD="${NTFY_PUBLISHER_PASSWORD}" \
-                        ntfy user add --ignore-exists --role=user "${NTFY_PUBLISHER_USER}"
-                      NTFY_PASSWORD="${NTFY_PUBLISHER_PASSWORD}" \
-                        ntfy user change-pass "${NTFY_PUBLISHER_USER}"
-                      ntfy access "${NTFY_PUBLISHER_USER}" 'obs-*' write-only
+                      NTFY_PASSWORD="$${NTFY_PUBLISHER_PASSWORD}" \
+                        ntfy user add --ignore-exists --role=user "$${NTFY_PUBLISHER_USER}"
+                      NTFY_PASSWORD="$${NTFY_PUBLISHER_PASSWORD}" \
+                        ntfy user change-pass "$${NTFY_PUBLISHER_USER}"
+                      ntfy access "$${NTFY_PUBLISHER_USER}" 'obs-*' write-only
 
                       echo "ntfy bootstrap complete"
             probes:
