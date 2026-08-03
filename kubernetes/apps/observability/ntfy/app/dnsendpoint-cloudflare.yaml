@@ -1,0 +1,17 @@
+---
+# Public DNS for ntfy-obs.kalde.in, CNAME'd onto the tunnel hostname.
+# Same pattern as network/cloudflare-dns/app/dnsendpoint-flux-webhook.yaml.
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: ntfy-cloudflare
+  namespace: observability
+  labels:
+    external-dns.io/provider: cloudflare
+spec:
+  endpoints:
+    - dnsName: ntfy-obs.kalde.in
+      recordTTL: 300
+      recordType: CNAME
+      targets:
+        - external-obs.kalde.in
