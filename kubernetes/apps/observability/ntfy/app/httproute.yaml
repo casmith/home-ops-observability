@@ -1,0 +1,28 @@
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ntfy
+  namespace: observability
+spec:
+  parentRefs:
+    # Internal gateway serves LAN clients that reach 192.168.10.242 directly.
+    - name: internal
+      namespace: network
+      sectionName: https
+    # External gateway is what the Cloudflare tunnel points at. Required for
+    # iOS: the app fetches message bodies from this server after an APNS wakeup,
+    # so it has to be reachable when away from home.
+    - name: external
+      namespace: network
+      sectionName: https
+  hostnames:
+    - "ntfy-obs.kalde.in"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: ntfy
+          port: 8080

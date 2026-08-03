@@ -1,0 +1,36 @@
+---
+# ntfy message templates, rendered against the raw webhook JSON body.
+# Referenced by publishers as ?template=<filename without extension>.
+#
+# NOTE: no reloader runs in this cluster, so editing this ConfigMap does not
+# restart ntfy. After changing a template:
+#   kubectl -n observability rollout restart deploy/ntfy
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ntfy-templates
+  namespace: observability
+data:
+  # Prometheus Alertmanager webhook (payload version 4).
+  # ntfy ships a built-in "alertmanager" template, but it prints the zero-value
+  # endsAt on firing alerts and cannot map severity onto ntfy priority, which is
+  # what actually decides how loudly iOS announces the notification.
+  obs-alert.yml: |
+    title: '{{ if eq .status "firing" }}🚨 {{ .commonLabels.alertname | default "Alert" }}{{ else }}✅ Resolved: {{ .commonLabels.alertname | default "Alert" }}{{ end }}'
+    message: |
+      {{- range .alerts }}
+      [{{ .labels.severity | default "unknown" | upper }}] {{ .labels.alertname }}
+      {{- if .labels.instance }}
+      Instance: {{ .labels.instance }}
+      {{- end }}
+      {{- if .annotations.summary }}
+      {{ .annotations.summary }}
+      {{- end }}
+      {{- if .annotations.description }}
+      {{ .annotations.description }}
+      {{- end }}
+      {{ end }}
+      {{- if .truncatedAlerts }}
+      (+{{ .truncatedAlerts }} more alerts truncated)
+      {{- end }}
+    priority: '{{ if eq .status "resolved" }}2{{ else if eq (.commonLabels.severity | default "") "critical" }}5{{ else if eq (.commonLabels.severity | default "") "warning" }}4{{ else }}3{{ end }}'

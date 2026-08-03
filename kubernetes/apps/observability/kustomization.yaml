@@ -6,4 +6,5 @@ resources:
   - ./kube-prometheus-stack/ks.yaml
   - ./loki/ks.yaml
   - ./grafana/ks.yaml
+  - ./ntfy/ks.yaml
   - ./uptime-kuma/ks.yaml

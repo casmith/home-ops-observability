@@ -1,0 +1,160 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: ntfy
+  namespace: observability
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: app-template
+      version: 3.7.3
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+      interval: 1h
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      ntfy:
+        # SQLite on NFS: single writer only, so never run two pods at once.
+        strategy: Recreate
+        initContainers:
+          bootstrap:
+            image:
+              repository: docker.io/binwiederhier/ntfy
+              tag: v2.26.3
+            # Flags are passed explicitly rather than via NTFY_* env so there is
+            # no precedence question against the image's /etc/ntfy/server.yml.
+            command:
+              - /bin/sh
+              - -c
+            args:
+              - |
+                set -eu
+                mkdir -p /var/lib/ntfy/attachments
+
+                AUTH="--auth-file=/var/lib/ntfy/user.db"
+
+                # Admin account for the iOS app and web UI.
+                NTFY_PASSWORD="${NTFY_ADMIN_PASSWORD}" \
+                  ntfy user ${AUTH} add --ignore-exists --role=admin "${NTFY_ADMIN_USER}"
+                NTFY_PASSWORD="${NTFY_ADMIN_PASSWORD}" \
+                  ntfy user ${AUTH} change-pass "${NTFY_ADMIN_USER}"
+
+                # Publisher for Alertmanager and Uptime Kuma.
+                NTFY_PASSWORD="${NTFY_PUBLISHER_PASSWORD}" \
+                  ntfy user ${AUTH} add --ignore-exists --role=user "${NTFY_PUBLISHER_USER}"
+                NTFY_PASSWORD="${NTFY_PUBLISHER_PASSWORD}" \
+                  ntfy user ${AUTH} change-pass "${NTFY_PUBLISHER_USER}"
+                ntfy access ${AUTH} "${NTFY_PUBLISHER_USER}" 'obs-*' write-only
+
+                echo "ntfy bootstrap complete"
+            envFrom:
+              - secretRef:
+                  name: ntfy-secret
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop: ["ALL"]
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 128Mi
+        containers:
+          app:
+            image:
+              repository: docker.io/binwiederhier/ntfy
+              tag: v2.26.3
+            args: ["serve"]
+            env:
+              TZ: UTC
+              NTFY_BASE_URL: https://ntfy-obs.kalde.in
+              # Unprivileged port so the container can run as non-root.
+              NTFY_LISTEN_HTTP: ":8080"
+              NTFY_BEHIND_PROXY: "true"
+              NTFY_AUTH_FILE: /var/lib/ntfy/user.db
+              # Nothing is readable or writable without an explicit grant.
+              NTFY_AUTH_DEFAULT_ACCESS: deny-all
+              NTFY_CACHE_FILE: /var/lib/ntfy/cache.db
+              NTFY_CACHE_DURATION: 12h
+              NTFY_ATTACHMENT_CACHE_DIR: /var/lib/ntfy/attachments
+              NTFY_TEMPLATE_DIR: /etc/ntfy/templates
+              # iOS instant delivery: ntfy.sh relays an APNS wakeup carrying only
+              # the message ID, then the app fetches the body from this server.
+              # Message contents never transit ntfy.sh.
+              NTFY_UPSTREAM_BASE_URL: https://ntfy.sh
+              NTFY_ENABLE_SIGNUP: "false"
+              NTFY_ENABLE_LOGIN: "true"
+              NTFY_ENABLE_RESERVATIONS: "false"
+              NTFY_LOG_LEVEL: info
+            probes:
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /v1/health
+                    port: 8080
+                  initialDelaySeconds: 5
+                  periodSeconds: 5
+                  timeoutSeconds: 5
+                  failureThreshold: 30
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /v1/health
+                    port: 8080
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+              readiness: *probes
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop: ["ALL"]
+            resources:
+              requests:
+                cpu: 25m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1024
+        runAsGroup: 100
+        fsGroup: 100
+        fsGroupChangePolicy: OnRootMismatch
+    service:
+      app:
+        controller: ntfy
+        ports:
+          http:
+            port: 8080
+    persistence:
+      data:
+        type: nfs
+        server: 192.168.10.3
+        path: /volume1/cluster/ntfy
+        globalMounts:
+          - path: /var/lib/ntfy
+      templates:
+        type: configMap
+        name: ntfy-templates
+        globalMounts:
+          - path: /etc/ntfy/templates
