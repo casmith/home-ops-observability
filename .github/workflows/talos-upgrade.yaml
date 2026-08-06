@@ -1,0 +1,394 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: "Talos Upgrade"
+
+on:
+  push:
+    branches: ["main"]
+    paths: ["talos/talenv.yaml"]
+  workflow_dispatch:
+    inputs:
+      nodes:
+        description: "Comma-separated hostnames to limit the run to (default: every node)"
+        required: false
+        default: ""
+      dry-run:
+        description: "Plan and gate only, without upgrading anything"
+        type: boolean
+        required: false
+        default: false
+
+concurrency:
+  group: talos-upgrade
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: home-ops-observability-runners
+    timeout-minutes: 15
+    outputs:
+      should-run: ${{ steps.plan.outputs.should-run }}
+      nodes-pending: ${{ steps.plan.outputs.nodes-pending }}
+      talos-version: ${{ steps.plan.outputs.talos-version }}
+      upgrade-k8s: ${{ steps.plan.outputs.upgrade-k8s }}
+      k8s-version: ${{ steps.plan.outputs.k8s-version }}
+      control-plane-matrix: ${{ steps.plan.outputs.control-plane-matrix }}
+      worker-matrix: ${{ steps.plan.outputs.worker-matrix }}
+      target-hostnames: ${{ steps.plan.outputs.target-hostnames }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Set up Talos tooling
+        uses: ./.github/actions/talos-setup
+        with:
+          sops-age-key: ${{ secrets.SOPS_AGE_KEY }}
+
+      - name: Preflight
+        run: |
+          set -euo pipefail
+
+          # Never start a rollout into an already-degraded cluster: the whole
+          # design assumes the nodes we are not touching can absorb the load.
+          # Read the Ready condition rather than the STATUS column, which also
+          # reports SchedulingDisabled -- a node left cordoned by an earlier
+          # failed run must not block the rerun that fixes it.
+          not_ready=()
+          cordoned=()
+          while read -r hostname ready unschedulable; do
+            [[ "$ready" != "True" ]] && not_ready+=("$hostname")
+            [[ "$unschedulable" == "true" ]] && cordoned+=("$hostname")
+          done < <(kubectl get nodes --no-headers -o custom-columns='NAME:.metadata.name,READY:.status.conditions[?(@.type=="Ready")].status,UNSCHEDULABLE:.spec.unschedulable')
+
+          if (( ${#not_ready[@]} > 0 )); then
+            echo "::error::these nodes are not Ready: ${not_ready[*]}"
+            exit 1
+          fi
+
+          if (( ${#cordoned[@]} > 0 )); then
+            echo "::warning::these nodes are cordoned and will be left cordoned: ${cordoned[*]}"
+          fi
+
+          while read -r hostname ip; do
+            # No `exit` in the awk: quitting early closes the pipe, talosctl
+            # takes SIGPIPE, and pipefail turns that into a failed preflight.
+            health="$(talosctl --nodes "$ip" --endpoints "$TALOS_ENDPOINT" service etcd \
+              | awk '$1 == "HEALTH" { print $2 }')"
+            if [[ "$health" != "OK" ]]; then
+              echo "::error::etcd on ${hostname} reports health ${health:-unknown}"
+              exit 1
+            fi
+            echo "etcd on ${hostname}: OK"
+          done < <(yq eval -r '.nodes[] | select(.controlPlane == true) | .hostname + " " + .ipAddress' talos/talconfig.yaml)
+
+          echo "All nodes Ready, etcd healthy on every control plane member"
+
+      - name: Build plan
+        id: plan
+        env:
+          FILTER: ${{ inputs.nodes }}
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          set -euo pipefail
+
+          target="$(yq eval -r '.talosVersion' talos/talenv.yaml)"
+          k8s_target="$(yq eval -r '.kubernetesVersion' talos/talenv.yaml)"
+          echo "talos-version=${target}" >> "$GITHUB_OUTPUT"
+
+          # Matrices come from talconfig.yaml, so adding a node to the cluster
+          # needs no change here.
+          build_matrix() {
+            local selector="$1" entries=() hostname ip
+            while read -r hostname ip; do
+              if [[ -n "$FILTER" && ",${FILTER}," != *",${hostname},"* ]]; then
+                continue
+              fi
+              entries+=("{\"hostname\":\"${hostname}\",\"ip\":\"${ip}\"}")
+            done < <(yq eval -r ".nodes[] | select(.controlPlane ${selector}) | .hostname + \" \" + .ipAddress" talos/talconfig.yaml)
+            local IFS=,
+            # :- guards the empty case. This cluster is all control plane, so
+            # the worker matrix is always empty, and under set -u an empty
+            # array expansion errors on bash older than 4.4.
+            echo "[${entries[*]:-}]"
+          }
+
+          control_plane_matrix="$(build_matrix '== true')"
+          worker_matrix="$(build_matrix '!= true')"
+          echo "control-plane-matrix=${control_plane_matrix}" >> "$GITHUB_OUTPUT"
+          echo "worker-matrix=${worker_matrix}" >> "$GITHUB_OUTPUT"
+
+          # The same filter again, as a flat list, so verify judges only the
+          # nodes this run targeted. build_matrix runs in a command
+          # substitution -- a subshell -- so it cannot hand this back in a
+          # variable.
+          target_hosts=()
+          while read -r hostname; do
+            if [[ -n "$FILTER" && ",${FILTER}," != *",${hostname},"* ]]; then
+              continue
+            fi
+            target_hosts+=("$hostname")
+          done < <(yq eval -r '.nodes[] | .hostname' talos/talconfig.yaml)
+          echo "target-hostnames=${target_hosts[*]:-}" >> "$GITHUB_OUTPUT"
+
+          # Decide from live cluster state rather than the git diff. A commit
+          # that only moves kubernetesVersion leaves every node already on the
+          # target Talos version, so nothing reboots.
+          pending=()
+          while read -r hostname os_image; do
+            current="${os_image#*(}"
+            current="${current%)}"
+            if [[ "$current" != "$target" ]]; then
+              pending+=("${hostname} (${current})")
+            fi
+          done < <(kubectl get nodes -o custom-columns='NAME:.metadata.name,IMAGE:.status.nodeInfo.osImage' --no-headers)
+
+          nodes_pending=false
+          if (( ${#pending[@]} > 0 )); then
+            nodes_pending=true
+          fi
+          echo "nodes-pending=${nodes_pending}" >> "$GITHUB_OUTPUT"
+
+          # Same idea for Kubernetes: compare the running kubelets, not the diff.
+          upgrade_k8s=false
+          stale_kubelets="$(kubectl get nodes -o jsonpath='{.items[*].status.nodeInfo.kubeletVersion}' \
+            | tr ' ' '\n' | grep -vx "$k8s_target" || true)"
+          if [[ -n "$stale_kubelets" ]]; then
+            upgrade_k8s=true
+          fi
+          echo "upgrade-k8s=${upgrade_k8s}" >> "$GITHUB_OUTPUT"
+          echo "k8s-version=${k8s_target}" >> "$GITHUB_OUTPUT"
+
+          # should-run means "there is work to do", of either kind. Deriving it
+          # from pending nodes alone skipped the approval job on a
+          # kubernetesVersion-only bump, and upgrade-k8s is gated on that
+          # approval -- so the Kubernetes upgrade silently never ran.
+          if [[ "$nodes_pending" == "true" || "$upgrade_k8s" == "true" ]]; then
+            echo "should-run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should-run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          {
+            echo "## Talos upgrade plan"
+            echo ""
+            echo "| Setting | Value |"
+            echo "|---|---|"
+            echo "| Target Talos version | \`${target}\` |"
+            echo "| Target Kubernetes version | \`${k8s_target}\` |"
+            echo "| Nodes needing upgrade | ${#pending[@]} |"
+            echo "| Kubernetes upgrade needed | $([[ -n "$stale_kubelets" ]] && echo yes || echo no) |"
+            [[ -n "$FILTER" ]] && echo "| Limited to | \`${FILTER}\` |"
+            [[ "$DRY_RUN" == "true" ]] && echo "| Dry run | yes |"
+            echo ""
+            if (( ${#pending[@]} > 0 )); then
+              echo "Pending: $(printf '%s, ' "${pending[@]}" | sed 's/, $//')"
+            else
+              echo "Every node already runs \`${target}\`. No nodes will be rebooted."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  approve:
+    name: Approve
+    needs: plan
+    if: needs.plan.outputs.should-run == 'true'
+    runs-on: home-ops-observability-runners
+    timeout-minutes: 5
+    environment: talos-upgrade
+    steps:
+      - name: Approved
+        run: |
+          echo "Approved rollout of ${{ needs.plan.outputs.talos-version }}"
+
+  control-plane:
+    name: ${{ matrix.hostname }}
+    needs: [plan, approve]
+    if: >-
+      needs.approve.result == 'success'
+      && needs.plan.outputs.nodes-pending == 'true'
+      && needs.plan.outputs.control-plane-matrix != '[]'
+    # The runners for this repo live in the home-ops cluster, not this one, so
+    # a job can never be evicted by the node it is rebooting. No pinning needed.
+    runs-on: home-ops-observability-runners
+    timeout-minutes: 45
+    strategy:
+      fail-fast: true
+      max-parallel: 1
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.control-plane-matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Set up Talos tooling
+        uses: ./.github/actions/talos-setup
+        with:
+          sops-age-key: ${{ secrets.SOPS_AGE_KEY }}
+          exclude-ip: ${{ matrix.ip }}
+
+      - name: Upgrade ${{ matrix.hostname }}
+        uses: ./.github/actions/talos-upgrade-node
+        with:
+          hostname: ${{ matrix.hostname }}
+          ip: ${{ matrix.ip }}
+          target-version: ${{ needs.plan.outputs.talos-version }}
+          control-plane: "true"
+          dry-run: ${{ inputs.dry-run }}
+
+  workers:
+    name: ${{ matrix.hostname }}
+    needs: [plan, approve, control-plane]
+    if: >-
+      !cancelled() && !failure()
+      && needs.approve.result == 'success'
+      && needs.plan.outputs.nodes-pending == 'true'
+      && needs.plan.outputs.worker-matrix != '[]'
+    runs-on: home-ops-observability-runners
+    timeout-minutes: 45
+    strategy:
+      fail-fast: true
+      max-parallel: 1
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.worker-matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Set up Talos tooling
+        uses: ./.github/actions/talos-setup
+        with:
+          sops-age-key: ${{ secrets.SOPS_AGE_KEY }}
+
+      - name: Upgrade ${{ matrix.hostname }}
+        uses: ./.github/actions/talos-upgrade-node
+        with:
+          hostname: ${{ matrix.hostname }}
+          ip: ${{ matrix.ip }}
+          target-version: ${{ needs.plan.outputs.talos-version }}
+          control-plane: "false"
+          dry-run: ${{ inputs.dry-run }}
+
+  upgrade-k8s:
+    name: Upgrade Kubernetes
+    needs: [plan, approve, control-plane, workers]
+    if: >-
+      !cancelled() && !failure()
+      && needs.approve.result == 'success'
+      && needs.plan.outputs.upgrade-k8s == 'true'
+      && inputs.dry-run != true
+      && inputs.nodes == ''
+    runs-on: home-ops-observability-runners
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Set up Talos tooling
+        uses: ./.github/actions/talos-setup
+        with:
+          sops-age-key: ${{ secrets.SOPS_AGE_KEY }}
+
+      - name: Upgrade Kubernetes
+        run: |
+          set -euo pipefail
+
+          # Cluster-wide rather than per-node: talosctl rolls the control plane
+          # static pods and kubelets itself.
+          cd talos
+          talhelper gencommand upgrade-k8s \
+            --extra-flags "--endpoints=${TALOS_ENDPOINT}" \
+            | tee /dev/stderr \
+            | bash
+
+      - name: Summary
+        if: always()
+        run: |
+          version="$(yq eval -r '.kubernetesVersion' talos/talenv.yaml)"
+          echo "Kubernetes upgraded to ${version}" >> "$GITHUB_STEP_SUMMARY"
+
+  verify:
+    name: Verify
+    needs: [plan, control-plane, workers, upgrade-k8s]
+    if: ${{ !cancelled() && needs.plan.outputs.should-run == 'true' }}
+    runs-on: home-ops-observability-runners
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Set up Talos tooling
+        uses: ./.github/actions/talos-setup
+        with:
+          sops-age-key: ${{ secrets.SOPS_AGE_KEY }}
+
+      - name: Verify cluster
+        env:
+          TARGETS: ${{ needs.plan.outputs.target-hostnames }}
+          # Only meaningful when this run was actually responsible for the
+          # Kubernetes upgrade. A filtered run does not touch kubelets, so
+          # holding it to the target version would fail it for no reason.
+          CHECK_KUBELET: ${{ needs.plan.outputs.upgrade-k8s == 'true' && inputs.nodes == '' }}
+        run: |
+          set -euo pipefail
+
+          target="$(yq eval -r '.talosVersion' talos/talenv.yaml)"
+          k8s_target="$(yq eval -r '.kubernetesVersion' talos/talenv.yaml)"
+
+          # Only the nodes this run set out to upgrade decide pass or fail. A
+          # dispatch limited with the `nodes` input deliberately leaves the rest
+          # of the cluster behind, so judging every node would mark every
+          # filtered run red -- noise that would eventually hide a real failure.
+          {
+            echo "## Cluster state"
+            echo ""
+            echo "| Node | Talos | Kubelet | Ready | |"
+            echo "|---|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          stale=0
+          skipped=0
+          # osImage reads "Talos (v1.13.6)" -- it contains a space, so it has to
+          # be the last column or it shifts everything after it.
+          while read -r hostname kubelet ready os_image; do
+            version="${os_image#*(}"
+            version="${version%)}"
+
+            if [[ " ${TARGETS} " != *" ${hostname} "* ]]; then
+              skipped=$(( skipped + 1 ))
+              echo "| ${hostname} | ${version} | ${kubelet} | ${ready} | not in this run |" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+
+            note=""
+            if [[ "$version" != "$target" ]]; then
+              note=":warning: not on \`${target}\`"
+              stale=$(( stale + 1 ))
+            fi
+            if [[ "$ready" != "True" ]]; then
+              note="${note} :warning: not Ready"
+              stale=$(( stale + 1 ))
+            fi
+            if [[ "$CHECK_KUBELET" == "true" && "$kubelet" != "$k8s_target" ]]; then
+              note="${note} :warning: kubelet not on \`${k8s_target}\`"
+              stale=$(( stale + 1 ))
+            fi
+            echo "| ${hostname} | ${version} | ${kubelet} | ${ready} | ${note} |" >> "$GITHUB_STEP_SUMMARY"
+          done < <(kubectl get nodes --no-headers -o custom-columns='NAME:.metadata.name,KUBELET:.status.nodeInfo.kubeletVersion,READY:.status.conditions[?(@.type=="Ready")].status,IMAGE:.status.nodeInfo.osImage')
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if (( stale > 0 )); then
+            echo "Targeted nodes are not all on \`${target}\` and Ready. Rerun the workflow to resume; nodes already upgraded are skipped." \
+              >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          if (( skipped > 0 )); then
+            echo "Every targeted node runs \`${target}\` and is Ready. ${skipped} node(s) were outside this run and were not checked." \
+              >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Every node runs \`${target}\` and is Ready." >> "$GITHUB_STEP_SUMMARY"
+          fi
