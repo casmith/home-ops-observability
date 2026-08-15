@@ -5,6 +5,8 @@ kind: DNSEndpoint
 metadata:
   name: loki-pihole
   namespace: observability
+  labels:
+    external-dns.io/provider: pihole
 spec:
   endpoints:
     - dnsName: loki-obs.kalde.in

@@ -8,3 +8,4 @@ resources:
   - ./helmrelease.yaml
   - ./httproute.yaml
   - ./dnsendpoint-cloudflare.yaml
+  - ./dnsendpoint-pihole.yaml

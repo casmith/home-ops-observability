@@ -42,6 +42,16 @@ spec:
     extraArgs:
       - --crd-source-apiversion=externaldns.k8s.io/v1alpha1
       - --crd-source-kind=DNSEndpoint
+      # Never publish AAAA into Pi-hole - this cluster has no routable IPv6,
+      # and an AAAA-only answer defeats client-side address fallback. See #68.
+      - --exclude-target-net=::/0
+
+    # Only process DNSEndpoints labeled for pihole. Without this, the
+    # cloudflare-labeled DNSEndpoints (ntfy-obs -> external-obs, flux-webhook)
+    # were also published into Pi-hole, so LAN clients followed a CNAME chain
+    # out to *.cfargotunnel.com and picked up Cloudflare's unroutable
+    # placeholder ULA fd10:aec2:5dae::. See #68.
+    labelFilter: external-dns.io/provider=pihole
 
     interval: 1m
     logLevel: info
