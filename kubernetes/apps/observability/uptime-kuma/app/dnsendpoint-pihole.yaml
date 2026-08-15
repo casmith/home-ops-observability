@@ -5,6 +5,8 @@ kind: DNSEndpoint
 metadata:
   name: uptime-kuma-pihole
   namespace: observability
+  labels:
+    external-dns.io/provider: pihole
 spec:
   endpoints:
     - dnsName: uptime-obs.kalde.in
