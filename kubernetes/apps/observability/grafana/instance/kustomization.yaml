@@ -7,7 +7,6 @@ resources:
   - ./datasource-loki.yaml
   - ./datasource-alertmanager.yaml
   - ./httproute.yaml
-  - ./dnsendpoint-pihole.yaml
   - ./dashboard-node-exporter.yaml
   - ./dashboard-kubernetes-cluster.yaml
   - ./dashboard-kubernetes-views-pods.yaml
