@@ -8,15 +8,11 @@ spec:
   hostnames:
     - flux-webhook-obs.kalde.in
   parentRefs:
-    # GitHub delivers the webhook from the internet, via the tunnel.
+    # External only, on purpose. GitHub delivers this webhook from the
+    # internet via the tunnel, and nothing on the LAN calls it. Attaching to
+    # the internal Gateway would publish a Pi-hole record for it and put a
+    # reconciliation trigger on the LAN for no caller.
     - name: external
-      namespace: network
-      sectionName: https
-    # Also LAN-reachable. This used to be a Pi-hole CNAME onto
-    # external-obs.kalde.in, which chained out to *.cfargotunnel.com and the
-    # unroutable ULA from #68. Attaching here instead earns a plain A record
-    # at 192.168.10.242, the same as every other service.
-    - name: internal
       namespace: network
       sectionName: https
   rules:
