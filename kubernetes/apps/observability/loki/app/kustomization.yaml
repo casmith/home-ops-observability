@@ -5,5 +5,4 @@ resources:
   - ./helmrepository.yaml
   - ./helmrelease.yaml
   - ./httproute.yaml
-  - ./dnsendpoint-pihole.yaml
   - ./rules-todoist-sync.yaml

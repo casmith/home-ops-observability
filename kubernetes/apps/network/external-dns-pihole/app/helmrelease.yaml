@@ -40,18 +40,21 @@ spec:
         value: "6"
 
     extraArgs:
-      - --crd-source-apiversion=externaldns.k8s.io/v1alpha1
-      - --crd-source-kind=DNSEndpoint
-      # Never publish AAAA into Pi-hole - this cluster has no routable IPv6,
-      # and an AAAA-only answer defeats client-side address fallback. See #68.
+      # LAN DNS is derived from the internal Gateway: any HTTPRoute that names
+      # network/internal as a parent gets an A record at that Gateway's address
+      # (192.168.10.242). Attaching a route is the whole action - there is no
+      # second file to remember, which is what went wrong in #68.
+      #
+      # This is also what keeps Pi-hole and Cloudflare apart. cloudflare-dns
+      # reads DNSEndpoint CRDs; this instance reads only Gateway-attached
+      # routes, filtered to the internal Gateway. Neither can see the other's
+      # records, so the labelFilter that used to do that job is gone.
+      - --gateway-name=internal
+      - --gateway-namespace=network
+      # Targets are Gateway addresses, which are IPv4 here. Harmless, and it
+      # guarantees a dual-stack Gateway could never publish an AAAA the LAN
+      # cannot route.
       - --exclude-target-net=::/0
-
-    # Only process DNSEndpoints labeled for pihole. Without this, the
-    # cloudflare-labeled DNSEndpoints (ntfy-obs -> external-obs, flux-webhook)
-    # were also published into Pi-hole, so LAN clients followed a CNAME chain
-    # out to *.cfargotunnel.com and picked up Cloudflare's unroutable
-    # placeholder ULA fd10:aec2:5dae::. See #68.
-    labelFilter: external-dns.io/provider=pihole
 
     interval: 1m
     logLevel: info
@@ -64,8 +67,12 @@ spec:
     txtOwnerId: obs-cluster-pihole
     txtPrefix: obs-
 
+    # No crd source: a DNSEndpoint will NOT reach Pi-hole. Records come from
+    # HTTPRoutes on the internal Gateway. To point a LAN name somewhere that
+    # is not the Gateway, add the crd source back together with a labelFilter,
+    # or cloudflare-dns will fight this instance over the same CRDs.
     sources:
-      - crd
+      - gateway-httproute
 
     serviceMonitor:
       enabled: true
