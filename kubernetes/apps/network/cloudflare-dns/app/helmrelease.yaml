@@ -43,7 +43,17 @@ spec:
     # Extra arguments
     extraArgs:
       - --cloudflare-dns-records-per-page=1000
-      # CRITICAL: Exclude IPv6 to prevent AAAA records that cause connection issues
+      # A *.cfargotunnel.com CNAME only routes when it is proxied - the edge is
+      # what connects the hostname to the tunnel. DNS-only, Cloudflare answers
+      # with its placeholder records (no A at all, and the unroutable ULA
+      # fd10:aec2:5dae:: for AAAA), so the public path does not work and LAN
+      # resolvers following the CNAME chain pick up that ULA. See #68.
+      # home-ops passes this on its cloudflare-dns for the same reason.
+      - --cloudflare-proxied
+      # Note: this only filters IPv6 *targets*, and every target here is an
+      # IPv4 literal or a CNAME, so it has never had an effect. The AAAA in #68
+      # came from Cloudflare's placeholder above, not from a published target.
+      # Kept for now; home-ops sets it on neither instance.
       - --exclude-target-net=::/0
 
     # Label filter to only process DNSEndpoints labeled for cloudflare
