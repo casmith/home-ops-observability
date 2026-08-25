@@ -41,13 +41,21 @@ spec:
         retentionSize: 450GB
 
         # Resource limits
+        # The limit of 8Gi exceeded the 7307Mi allocatable on any single node, so
+        # the cgroup could never cap Prometheus -- the node ran out of memory first
+        # (down to 10-12% available), starving the kubelet and making whichever node
+        # hosts Prometheus the one that flaps. Observed usage: p99 3.93Gi (7d),
+        # peak 4.23Gi (7d), peak 4.73Gi (30d, includes WAL replay after restarts).
+        # 5.5Gi caps it below node capacity with ~16% headroom over the 30d peak.
+        # The 4Gi request already covers the p99 and is left alone: raising it would
+        # push the hosting node past 97% of allocatable and block scheduling.
         resources:
           requests:
             cpu: 500m
             memory: 4Gi
           limits:
             cpu: 2000m
-            memory: 8Gi
+            memory: 5632Mi
 
         # NFS Storage
         storageSpec:
@@ -82,8 +90,33 @@ spec:
             honor_labels: true
             metrics_path: '/federate'
             params:
+              # Federate only what this cluster actually consumes. '{job=~".+"}'
+              # pulled the main cluster's entire TSDB (433k series, 75% of ours);
+              # apiserver_request_duration_seconds_bucket alone was 27k series that
+              # no rule or dashboard reads. This allowlist keeps ~63k series.
+              # NOTE: these selectors are evaluated by the MAIN cluster's Prometheus
+              # against ITS label values, so the job name here is 'node-exporter',
+              # not the 'main-nodes' that metric_relabel_configs renames it to
+              # below. For the same reason nothing here can match on cluster="main",
+              # which is attached locally via static_configs.
               'match[]':
-                - '{job=~".+"}'
+                # Whole jobs -- cheap, and feed both dashboards and alerts.
+                - '{job="kube-state-metrics"}'
+                - '{job="node-exporter"}'
+                # Target liveness for every main-cluster component (KubeAPIDown,
+                # KubeletDown, NodeDown, ...).
+                - '{__name__="up"}'
+                # Control-plane alerting: this cluster is the only alerting for
+                # main, so the apiserver/kubelet metrics the default rules read
+                # must keep flowing -- but only those, not the whole job.
+                - '{__name__=~"apiserver_client_certificate_expiration_seconds_bucket|apiserver_client_certificate_expiration_seconds_count|apiserver_request_sli_duration_seconds_bucket|apiserver_request_sli_duration_seconds_count|apiserver_request_terminations_total|apiserver_request_total"}'
+                - '{__name__=~"kubelet_certificate_manager_client_expiration_renew_errors|kubelet_certificate_manager_client_ttl_seconds|kubelet_node_name|kubelet_pleg_relist_duration_seconds_bucket|kubelet_pod_worker_duration_seconds_bucket|kubelet_running_pods|kubelet_volume_stats_.*"}'
+                # cAdvisor series behind the pod CPU/memory panels and throttling alerts.
+                - '{__name__=~"container_cpu_cfs_periods_total|container_cpu_cfs_throttled_periods_total|container_cpu_usage_seconds_total|container_memory_cache|container_memory_rss|container_memory_working_set_bytes"}'
+                # Assorted singles referenced by the default rules.
+                - '{__name__=~"rest_client_requests_total|aggregator_unavailable_apiservice|aggregator_unavailable_apiservice_total|process_start_time_seconds|kubernetes_build_info"}'
+                # Main's own Prometheus/Alertmanager health -- nothing else watches it.
+                - '{__name__=~"prometheus_.*|alertmanager_.*|reloader_last_reload_successful"}'
             static_configs:
               - targets:
                   - 'prometheus.kalde.in'
