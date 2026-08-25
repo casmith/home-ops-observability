@@ -83,7 +83,7 @@ serviceAccount:
 service:
   name: kube-dns
   clusterIP: "10.53.0.10"
-replicaCount: 2
+replicaCount: 3
 servers:
   - zones:
       - zone: kalde.in
@@ -144,6 +144,23 @@ tolerations:
   - key: node-role.kubernetes.io/control-plane
     operator: Exists
     effect: NoSchedule
+# Force one replica per node so losing a single control-plane node cannot take
+# out all of cluster DNS. Selector labels are literal because fullnameOverride
+# and k8sAppLabelOverride pin them; templating them here would be evaluated by
+# helmfile's gotmpl pass rather than Helm's.
+topologySpreadConstraints:
+  - labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: coredns
+        app.kubernetes.io/instance: coredns
+        k8s-app: kube-dns
+    topologyKey: kubernetes.io/hostname
+    maxSkew: 1
+    whenUnsatisfiable: DoNotSchedule
+podDisruptionBudget:
+  maxUnavailable: 1
+# Cluster DNS must outrank ordinary workloads when the kubelet evicts under pressure.
+priorityClassName: system-cluster-critical
 {{- else if eq .Release.Name "spegel" -}}
 spegel:
   containerdSock: /run/containerd/containerd.sock
