@@ -8,6 +8,13 @@ spec:
   instanceSelector:
     matchLabels:
       dashboards: grafana
+
+  # Grafana Logs Drilldown - label-first log browsing without writing LogQL.
+  # The operator aggregates these into GF_INSTALL_PLUGINS on the Grafana deployment.
+  plugins:
+    - name: grafana-lokiexplore-app
+      version: "2.5.1"
+
   datasource:
     name: Loki
     type: loki
