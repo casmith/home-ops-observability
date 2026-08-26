@@ -9,3 +9,18 @@ spec:
   url: oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack
   ref:
     tag: 88.5.4
+  # Select the chart layer by media type rather than by position. Flux defaults
+  # to "the first layer found in the artifact", and upstream swapped the layer
+  # ordering between 88.3.0 and 88.5.4:
+  #
+  #   88.3.0  layer[0]=chart.content.v1.tar+gzip  layer[1]=chart.provenance.v1.prov
+  #   88.5.4  layer[0]=chart.provenance.v1.prov   layer[1]=chart.content.v1.tar+gzip
+  #
+  # So Flux grabbed the 3.5KB plaintext .prov signature and tried to gunzip it:
+  #   "failed to extract layer contents from artifact:
+  #    requires gzip-compressed body: gzip: invalid header"
+  # which wedged the HelmRelease and left this Kustomization reconciling forever.
+  # Matching on mediaType picks the chart whatever order upstream publishes in.
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: extract
