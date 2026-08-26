@@ -7,6 +7,10 @@ metadata:
   labels:
     dashboards: grafana
 spec:
+  # Pinned: plugin grafana-lokiexplore-app 2.x requires >=12.1.7 in the 12.1 line.
+  # Operator default would be 12.1.0, which the plugin refuses to load on.
+  version: 12.1.10
+
   config:
     auth:
       disable_login_form: "false"
