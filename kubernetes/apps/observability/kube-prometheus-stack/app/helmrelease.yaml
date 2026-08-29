@@ -40,6 +40,18 @@ spec:
         retention: 90d
         retentionSize: 450GB
 
+        # Accept pushed samples at /api/v1/write. Off by default, and required
+        # by the Alloy OTLP collector next door: the senders it exists for are
+        # ephemeral processes outside this cluster (Claude Code on the
+        # workstation and in the homelab-agent job runner), so there is nothing
+        # long-lived for Prometheus to scrape -- they push, Alloy receives, and
+        # this is the door it hands the samples through.
+        #
+        # This only opens the in-cluster Service. Nothing routes /api/v1/write
+        # from the internal gateway, so the write path is not reachable from
+        # the LAN.
+        enableRemoteWriteReceiver: true
+
         # Resource limits
         # The limit of 8Gi exceeded the 7307Mi allocatable on any single node, so
         # the cgroup could never cap Prometheus -- the node ran out of memory first

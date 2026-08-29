@@ -1,0 +1,16 @@
+---
+# Same name/namespace as loki/app and grafana/operator already declare. That
+# duplication predates this app and is the house pattern here (each app dir is
+# self-contained); adding a third identical copy keeps Alloy consistent with
+# its neighbours rather than introducing an implicit cross-app dependency on
+# Loki's copy existing. Worth hoisting all three to one shared declaration at
+# the observability level someday -- two Flux Kustomizations owning one object
+# means whichever is deleted first prunes it out from under the others.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: grafana
+  namespace: observability
+spec:
+  interval: 1h
+  url: https://grafana.github.io/helm-charts

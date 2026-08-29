@@ -1,0 +1,148 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: alloy
+  namespace: observability
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: alloy
+      version: 1.12.1
+      sourceRef:
+        kind: HelmRepository
+        name: grafana
+        namespace: observability
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controller:
+      # Deployment, not the chart's default DaemonSet. Alloy is a push target
+      # here, not a node agent: it collects nothing from the node it runs on,
+      # so one stable Service endpoint behind the HTTPRoute is exactly what is
+      # wanted and a copy per node would just multiply idle pods.
+      type: deployment
+      replicas: 1
+
+    # Scrape Alloy's own metrics. A collector that has quietly stopped
+    # forwarding looks exactly like "nobody used Claude today" on the
+    # dashboards downstream, and that is the one failure this whole pipeline
+    # cannot self-report. alloy_build_info and the otelcol receiver/exporter
+    # counters make it visible -- in particular
+    # otelcol_exporter_send_failed_metric_points, which is what a Prometheus
+    # rejecting remote writes shows up as.
+    serviceMonitor:
+      enabled: true
+
+    alloy:
+      extraPorts:
+        - name: otlp-grpc
+          port: 4317
+          targetPort: 4317
+          protocol: TCP
+        - name: otlp-http
+          port: 4318
+          targetPort: 4318
+          protocol: TCP
+
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          memory: 512Mi
+
+      configMap:
+        create: true
+        content: |-
+          // ---------------------------------------------------------------
+          // OTLP ingest for LLM usage telemetry.
+          //
+          // Senders are ephemeral processes outside this cluster -- Claude
+          // Code on the workstation and in the homelab-agent job runner --
+          // which is why this is a push receiver rather than a scrape target.
+          // See kubernetes/apps/observability/alloy/app/httproute.yaml.
+          // ---------------------------------------------------------------
+          otelcol.receiver.otlp "default" {
+            grpc {
+              endpoint = "0.0.0.0:4317"
+            }
+            http {
+              endpoint = "0.0.0.0:4318"
+            }
+
+            output {
+              metrics = [otelcol.processor.batch.default.input]
+              logs    = [otelcol.processor.batch.default.input]
+            }
+          }
+
+          otelcol.processor.batch "default" {
+            output {
+              metrics = [otelcol.exporter.prometheus.default.input]
+              logs    = [otelcol.exporter.loki.default.input]
+            }
+          }
+
+          // --- Metrics: the aggregate cost/token view. ---
+          otelcol.exporter.prometheus "default" {
+            forward_to = [prometheus.relabel.drop_high_cardinality.receiver]
+          }
+
+          // Cardinality guard, and the reason it lives here rather than in
+          // each sender's environment.
+          //
+          // Claude Code sets OTEL_METRICS_INCLUDE_SESSION_ID=true BY DEFAULT,
+          // which puts a distinct session.id on every metric datapoint. On a
+          // 90d/450GB Prometheus that is one new series per CLI session,
+          // growing without bound -- and the failure is slow and expensive
+          // rather than loud. user.account_uuid is the opposite problem: a
+          // single constant value on a one-person homelab, so it is pure
+          // label weight carrying no information.
+          //
+          // Senders should set OTEL_METRICS_INCLUDE_SESSION_ID=false anyway,
+          // but they are hand-configured on several machines and one that
+          // forgets would quietly damage Prometheus for everyone. Enforcing it
+          // at the single point every sender passes through is the difference
+          // between a convention and an invariant.
+          //
+          // Session-level detail is not lost -- it stays on the api_request
+          // events routed to Loki below, where high cardinality is cheap and
+          // is what you actually want for drill-down.
+          prometheus.relabel "drop_high_cardinality" {
+            rule {
+              action = "labeldrop"
+              regex  = "session_id|user_account_uuid|user_account_id|user_email"
+            }
+            forward_to = [prometheus.remote_write.default.receiver]
+          }
+
+          prometheus.remote_write "default" {
+            endpoint {
+              // Requires enableRemoteWriteReceiver on the Prometheus CR --
+              // set in kube-prometheus-stack's HelmRelease, and the reason
+              // this app dependsOn it.
+              url = "http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090/api/v1/write"
+            }
+          }
+
+          // --- Logs: per-request events, for drill-down. ---
+          //
+          // Claude Code emits claude_code.api_request as a log record carrying
+          // cost, token counts and duration for one call. The metrics above
+          // answer "what did this month cost"; these answer "which requests".
+          otelcol.exporter.loki "default" {
+            forward_to = [loki.write.default.receiver]
+          }
+
+          loki.write "default" {
+            endpoint {
+              url = "http://loki-gateway.observability.svc.cluster.local/loki/api/v1/push"
+            }
+          }
