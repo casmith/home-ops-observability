@@ -6,3 +6,4 @@ resources:
   - ./helmrelease.yaml
   - ./alertmanager-config.sops.yaml
   - ./scrapeconfig-proxmox.yaml
+  - ./scrapeconfig-openclaw.yaml

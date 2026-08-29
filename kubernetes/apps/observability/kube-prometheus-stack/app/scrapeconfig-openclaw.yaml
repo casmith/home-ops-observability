@@ -1,0 +1,32 @@
+---
+# OpenClaw usage exporter on pve4-ubuntu-1.
+#
+# Turns OpenClaw's per-session trajectory logs into token and imputed-cost
+# metrics. It exists because OpenClaw publishes none of that itself: its
+# OpenTelemetry support is traces-only, so unlike Claude Code there is nothing
+# to push at the Alloy collector -- this is scraped instead.
+#
+# Source and the counting rules it depends on:
+# casmith/calypso-deploy -> openclaw-exporter/README.md
+#
+# NOTE on openclaw_cost_usd_total: that figure is IMPUTED at API list prices,
+# not money billed -- OpenClaw authenticates with a ChatGPT subscription. It
+# must not be summed with LiteLLM gateway spend, which is real. The metric's
+# own HELP text repeats this.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: openclaw-exporter
+  namespace: observability
+spec:
+  staticConfigs:
+    - targets: ["192.168.10.46:9878"]
+      labels:
+        instance: pve4-ubuntu-1
+  # The exporter recomputes from ~780 MB of trajectories on a 60s timer and
+  # serves the last result, so scraping faster than that returns the same
+  # numbers. 60s matches the refresh rather than beating it pointlessly.
+  scrapeInterval: 60s
+  relabelings:
+    - targetLabel: job
+      replacement: openclaw-exporter
