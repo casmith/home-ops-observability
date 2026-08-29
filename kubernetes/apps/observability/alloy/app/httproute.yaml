@@ -1,0 +1,32 @@
+---
+# Internal-only HTTPRoute for the OTLP receiver.
+#
+# The senders are deliberately OUTSIDE this cluster: Claude Code on clay's
+# workstation and in the homelab-agent job runner on pve6-ubuntu-agent-1. Both
+# are ephemeral processes, so Prometheus cannot scrape them -- they push, and
+# this is where they push to. Same shape as loki-obs.kalde.in, which the
+# homelab agent already ships container logs to.
+#
+# HTTPRoute, so this is OTLP over HTTP on 4318. The gRPC receiver on 4317 is
+# reachable in-cluster only; exposing it would need a GRPCRoute. Senders should
+# set OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf.
+#
+# No authentication, matching the Loki route next door. That is a deliberate
+# LAN-only posture, not an oversight: this listener accepts unauthenticated
+# metrics from anything that can reach it, so it must never be attached to the
+# external gateway.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: alloy
+  namespace: observability
+spec:
+  parentRefs:
+    - name: internal
+      namespace: network
+  hostnames:
+    - otlp-obs.kalde.in
+  rules:
+    - backendRefs:
+        - name: alloy
+          port: 4318

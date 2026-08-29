@@ -1,0 +1,29 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app alloy
+  namespace: flux-system
+spec:
+  targetNamespace: observability
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  interval: 1h
+  retryInterval: 2m
+  timeout: 15m
+  path: ./kubernetes/apps/observability/alloy/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  # Alloy remote-writes into Prometheus, which must have its remote-write
+  # receiver enabled first -- that flag lives in kube-prometheus-stack's
+  # HelmRelease. Without this ordering Alloy comes up healthy and drops every
+  # sample with a 404 from a Prometheus that isn't listening for writes.
+  dependsOn:
+    - name: kube-prometheus-stack
+  wait: true
+  postBuild:
+    substitute:
+      APP: *app
