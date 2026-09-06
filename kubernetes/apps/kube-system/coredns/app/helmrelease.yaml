@@ -1,0 +1,116 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: coredns
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: coredns
+  install:
+    remediation:
+      retries: -1
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      strategy: rollback
+      retries: 3
+  # Values below must stay in sync with the coredns block in
+  # bootstrap/helmfile.d/templates/values.yaml.gotmpl, which installs CoreDNS
+  # before Flux exists. This HelmRelease adopts that release (same name, same
+  # namespace) and owns it from then on.
+  values:
+    fullnameOverride: coredns
+    image:
+      repository: mirror.gcr.io/coredns/coredns
+    k8sAppLabelOverride: kube-dns
+    serviceAccount:
+      create: true
+    service:
+      name: kube-dns
+      clusterIP: "10.53.0.10"
+    replicaCount: 3
+    servers:
+      # Forward kalde.in to Pi-hole for split-horizon DNS. Both are listed so
+      # losing one host does not take internal name resolution down with it.
+      - zones:
+          - zone: kalde.in
+            scheme: dns://
+            use_tcp: true
+        port: 53
+        plugins:
+          - name: errors
+          - name: cache
+            parameters: 30
+          - name: forward
+            parameters: . 192.168.8.10 192.168.8.11
+          - name: log
+            configBlock: |-
+              class error
+      - zones:
+          - zone: .
+            scheme: dns://
+            use_tcp: true
+        port: 53
+        plugins:
+          - name: errors
+          - name: health
+            configBlock: |-
+              lameduck 5s
+          - name: ready
+          # This cluster is IPv4-only: pods sit in 10.52.0.0/16 on single-stack
+          # Cilium and carry only a link-local fe80::/64 in /proc/net/if_inet6.
+          # No AAAA we hand out is ever reachable.
+          #
+          # glibc and musl hide AAAA from applications via AI_ADDRCONFIG when
+          # the netns has no global IPv6 address, which is why curl and nslookup
+          # were never affected. Go binaries built with CGO_ENABLED=0 use Go's
+          # own resolver, which does not implement AI_ADDRCONFIG. They query
+          # AAAA directly, get an address they cannot route to, and fail with
+          # "connect: network is unreachable".
+          #
+          # Observed as ntfy's iOS instant-delivery relay failing every single
+          # publish -- it dials NTFY_UPSTREAM_BASE_URL (ntfy.sh, which has an
+          # AAAA) so the APNS wakeup never left the cluster and no notification
+          # ever reached the phone.
+          #
+          # NOERROR with no answer section is NODATA: "this name has no AAAA",
+          # which is the truthful answer here. No fallthrough -- the point is
+          # that nothing downstream ever produces one. Remove this block if the
+          # cluster ever gains real IPv6.
+          #
+          # Mirrors the same fix in the main cluster (home-ops:
+          # kubernetes/apps/kube-system/coredns/app/helmrelease.yaml).
+          - name: template
+            parameters: ANY AAAA
+            configBlock: |-
+              rcode NOERROR
+          - name: kubernetes
+            parameters: cluster.local in-addr.arpa ip6.arpa
+            configBlock: |-
+              pods verified
+              fallthrough in-addr.arpa ip6.arpa
+          - name: autopath
+            parameters: "@kubernetes"
+          - name: forward
+            parameters: . /etc/resolv.conf
+          - name: cache
+            configBlock: |-
+              prefetch 20
+              serve_stale
+          - name: loop
+          - name: reload
+          - name: loadbalance
+          - name: prometheus
+            parameters: 0.0.0.0:9153
+          - name: log
+            configBlock: |-
+              class error
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: node-role.kubernetes.io/control-plane
+                  operator: Exists
