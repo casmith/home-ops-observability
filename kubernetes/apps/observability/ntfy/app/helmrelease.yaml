@@ -77,6 +77,12 @@ spec:
               NTFY_UPSTREAM_BASE_URL: https://ntfy.sh
               NTFY_ENABLE_SIGNUP: "false"
               NTFY_ENABLE_LOGIN: "true"
+              # Paired with deny-all above. Without this the web app still
+              # renders for an anonymous or expired session, then silently
+              # retries a subscribe that can only ever 403 -- the UI looks
+              # half-loaded and the websocket reconnects forever. Requiring
+              # login turns that dead end into a login page.
+              NTFY_REQUIRE_LOGIN: "true"
               NTFY_ENABLE_RESERVATIONS: "false"
               NTFY_LOG_LEVEL: info
             # Account credentials. The CLI reads NTFY_AUTH_FILE from the env
