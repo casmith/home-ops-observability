@@ -8,5 +8,6 @@ resources:
   - ./datasource-alertmanager.yaml
   - ./httproute.yaml
   - ./dashboard-node-exporter.yaml
+  - ./dashboard-nvidia-gpu.yaml
   - ./dashboard-kubernetes-cluster.yaml
   - ./dashboard-kubernetes-views-pods.yaml
