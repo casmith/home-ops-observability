@@ -1,0 +1,85 @@
+---
+# Docker hosts and VMs managed by casmith/calypso-deploy. node-exporter runs on
+# each of them (from the host's compose file, or Ubuntu's package on the one
+# host without Docker), and the inventory there -- hosts.yaml -- is the list
+# this mirrors. A host added there and not here never appears in Grafana; the
+# VMNodeExporterDown alert only covers hosts that are listed.
+#
+# instance is the inventory hostname rather than ip:port so dashboards and
+# alerts name the machine.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: vm-node-exporter
+  namespace: observability
+spec:
+  staticConfigs:
+    - targets: ["192.168.10.10:9100"]
+      labels:
+        instance: calypso
+        cluster: vms
+    - targets: ["192.168.8.10:9100"]
+      labels:
+        instance: cerritos
+        cluster: vms
+    - targets: ["192.168.10.79:9100"]
+      labels:
+        instance: excelsior
+        cluster: vms
+    - targets: ["192.168.8.11:9100"]
+      labels:
+        instance: saopaulo
+        cluster: vms
+    - targets: ["192.168.10.35:9100"]
+      labels:
+        instance: pve1-ubuntu-1
+        cluster: vms
+    - targets: ["192.168.10.41:9100"]
+      labels:
+        instance: pve2-ubuntu-highmem-1
+        cluster: vms
+    - targets: ["192.168.10.46:9100"]
+      labels:
+        instance: pve4-ubuntu-1
+        cluster: vms
+    - targets: ["192.168.10.50:9100"]
+      labels:
+        instance: pve5-ubuntu-highmem-1
+        cluster: vms
+    - targets: ["192.168.10.54:9100"]
+      labels:
+        instance: pve6-ubuntu-gpu-1
+        cluster: vms
+    - targets: ["192.168.10.55:9100"]
+      labels:
+        instance: pve6-ubuntu-agent-1
+        cluster: vms
+    - targets: ["192.168.10.56:9100"]
+      labels:
+        instance: pve6-ubuntu-jarvis-1
+        cluster: vms
+    - targets: ["192.168.10.52:9100"]
+      labels:
+        instance: chaos
+        cluster: vms
+  relabelings:
+    - targetLabel: job
+      replacement: vm-nodes
+---
+# NVIDIA GPUs, via nvidia_gpu_exporter (reads nvidia-smi; works on GeForce,
+# unlike dcgm-exporter). Today only the RTX 3090 Ti passed through to
+# pve6-ubuntu-gpu-1.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: nvidia-gpu-exporter
+  namespace: observability
+spec:
+  staticConfigs:
+    - targets: ["192.168.10.54:9835"]
+      labels:
+        instance: pve6-ubuntu-gpu-1
+        cluster: vms
+  relabelings:
+    - targetLabel: job
+      replacement: nvidia-gpu

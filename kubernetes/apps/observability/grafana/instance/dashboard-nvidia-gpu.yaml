@@ -1,0 +1,17 @@
+---
+# Nvidia GPU Metrics, built for nvidia_gpu_exporter (job nvidia-gpu)
+# Dashboard source: https://grafana.com/grafana/dashboards/14574
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: nvidia-gpu-metrics
+  namespace: observability
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  datasources:
+    - datasourceName: Prometheus
+      inputName: DS_PROMETHEUS
+  url: https://grafana.com/api/dashboards/14574/revisions/15/download
+  folder: VMs

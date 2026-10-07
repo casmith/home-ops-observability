@@ -1,0 +1,59 @@
+---
+# Alerts for the calypso-deploy hosts (job vm-nodes) and their GPUs. The
+# chart's bundled node-exporter rules select job="node-exporter", so none of
+# them fire for these targets -- this file is the whole of their alerting.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: vm-alerts
+  namespace: observability
+  labels:
+    prometheus: kube-prometheus-stack
+    role: alert-rules
+spec:
+  groups:
+    - name: vm.rules
+      interval: 30s
+      rules:
+        - alert: VMNodeExporterDown
+          expr: up{job=~"vm-nodes|nvidia-gpu"} == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.job }} on {{ $labels.instance }} is not reporting"
+            description: "Prometheus has failed to scrape {{ $labels.job }} on {{ $labels.instance }} for 5 minutes. The host may be down, or its exporter is not running."
+
+        - alert: VMFilesystemAlmostFull
+          # Local filesystems only: the NAS mounts (/mnt/*) appear on several
+          # hosts at once and are the NAS's to alert on, not each client's.
+          expr: |
+            (
+              node_filesystem_avail_bytes{job="vm-nodes", fstype!~"nfs.*|cifs|tmpfs|ramfs|fuse.*", mountpoint!~"/mnt/.*"}
+                / node_filesystem_size_bytes{job="vm-nodes", fstype!~"nfs.*|cifs|tmpfs|ramfs|fuse.*", mountpoint!~"/mnt/.*"}
+            ) < 0.10
+            and node_filesystem_readonly{job="vm-nodes"} == 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.mountpoint }} on {{ $labels.instance }} has {{ $value | humanizePercentage }} free"
+            description: "Less than 10% space left on {{ $labels.device }} ({{ $labels.mountpoint }}) on {{ $labels.instance }}."
+
+        - alert: VMMemoryLow
+          expr: node_memory_MemAvailable_bytes{job="vm-nodes"} / node_memory_MemTotal_bytes{job="vm-nodes"} < 0.05
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.instance }} has under 5% memory available"
+            description: "MemAvailable on {{ $labels.instance }} has been below 5% of total for 15 minutes."
+
+        - alert: GPUTemperatureHigh
+          expr: nvidia_smi_temperature_gpu{job="nvidia-gpu"} > 85
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "GPU on {{ $labels.instance }} is at {{ $value }}°C"
+            description: "The GPU on {{ $labels.instance }} has been above 85°C for 10 minutes."
