@@ -132,6 +132,18 @@ spec:
                         ntfy user change-pass "$${NTFY_PUBLISHER_USER}"
                       ntfy access "$${NTFY_PUBLISHER_USER}" 'obs-*' write-only
 
+                      # Khaos News (main cluster) publishes followed-story updates and
+                      # daily briefs to khaos-* topics. Optional: skipped until the
+                      # NTFY_KHAOS_* keys exist in ntfy-secret (set -u would otherwise
+                      # kill the container on the unset variable).
+                      if [ -n "$${NTFY_KHAOS_USER:-}" ]; then
+                        NTFY_PASSWORD="$${NTFY_KHAOS_PASSWORD}" \
+                          ntfy user add --ignore-exists --role=user "$${NTFY_KHAOS_USER}"
+                        NTFY_PASSWORD="$${NTFY_KHAOS_PASSWORD}" \
+                          ntfy user change-pass "$${NTFY_KHAOS_USER}"
+                        ntfy access "$${NTFY_KHAOS_USER}" 'khaos-*' write-only
+                      fi
+
                       echo "ntfy bootstrap complete"
             probes:
               startup:
