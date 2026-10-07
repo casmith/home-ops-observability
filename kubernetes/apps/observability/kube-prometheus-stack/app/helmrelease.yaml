@@ -125,6 +125,8 @@ spec:
                 - '{__name__=~"kubelet_certificate_manager_client_expiration_renew_errors|kubelet_certificate_manager_client_ttl_seconds|kubelet_node_name|kubelet_pleg_relist_duration_seconds_bucket|kubelet_pod_worker_duration_seconds_bucket|kubelet_running_pods|kubelet_volume_stats_.*"}'
                 # cAdvisor series behind the pod CPU/memory panels and throttling alerts.
                 - '{__name__=~"container_cpu_cfs_periods_total|container_cpu_cfs_throttled_periods_total|container_cpu_usage_seconds_total|container_memory_cache|container_memory_rss|container_memory_working_set_bytes"}'
+                # Khaos News app metrics (khaos-news-alerts rules); a few hundred series.
+                - '{__name__=~"khaos_.*"}'
                 # Assorted singles referenced by the default rules.
                 - '{__name__=~"rest_client_requests_total|aggregator_unavailable_apiservice|aggregator_unavailable_apiservice_total|process_start_time_seconds|kubernetes_build_info"}'
                 # Main's own Prometheus/Alertmanager health -- nothing else watches it.
