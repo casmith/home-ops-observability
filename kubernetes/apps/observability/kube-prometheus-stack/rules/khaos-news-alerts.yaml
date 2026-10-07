@@ -1,0 +1,102 @@
+---
+# Khaos News (news.kalde.in, main cluster, namespace default). Metrics arrive through
+# the federate-main-cluster job ({__name__=~"khaos_.*"}); runbook in the khaos-news
+# repo, docs/operations.md.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: khaos-news-alerts
+  namespace: observability
+  labels:
+    prometheus: kube-prometheus-stack
+    role: alert-rules
+spec:
+  groups:
+    - name: khaos-news.rules
+      interval: 1m
+      rules:
+        - alert: KhaosWorkerDown
+          expr: |
+            up{cluster="main", namespace="default", service="khaos-news-worker"} == 0
+            or absent(up{cluster="main", namespace="default", service="khaos-news-worker"})
+          for: 10m
+          labels:
+            severity: critical
+            cluster: main
+          annotations:
+            summary: "Khaos News worker is down"
+            description: "The worker's metrics endpoint has not been scraped for 10 minutes; nothing is being ingested, clustered or summarized."
+
+        - alert: KhaosIngestStalled
+          expr: time() - khaos_ingest_last_success_timestamp_seconds{cluster="main"} > 1800
+          for: 5m
+          labels:
+            severity: warning
+            cluster: main
+          annotations:
+            summary: "Khaos News has not ingested from Miniflux for {{ $value | humanizeDuration }}"
+            description: "No successful ingest pass in 30+ minutes. Check Miniflux (rss.kalde.in) and the worker logs (worker.ingest_failed)."
+
+        - alert: KhaosStageFailing
+          expr: time() - khaos_stage_last_success_timestamp_seconds{cluster="main", stage=~"process|synthesis|notify"} > 3600
+          for: 10m
+          labels:
+            severity: warning
+            cluster: main
+          annotations:
+            summary: "Khaos News {{ $labels.stage }} stage has not succeeded for {{ $value | humanizeDuration }}"
+            description: "The worker's {{ $labels.stage }} stage keeps raising. See worker logs (worker.processing_failed / synthesis_failed / notify_failed)."
+
+        - alert: KhaosInferenceUnavailable
+          expr: increase(khaos_enrich_failures_total{cluster="main"}[1h]) >= 6
+          for: 15m
+          labels:
+            severity: warning
+            cluster: main
+          annotations:
+            summary: "Khaos News cannot reach the embedding model"
+            description: "Enrichment batches keep failing, so new articles are not clustered. Check Ollama at 192.168.10.54:11434."
+
+        - alert: KhaosSummariesFailing
+          expr: |
+            sum(increase(khaos_syntheses_total{cluster="main", outcome="failed"}[2h])) >= 3
+            unless sum(increase(khaos_syntheses_total{cluster="main", outcome="valid"}[2h])) > 0
+          for: 15m
+          labels:
+            severity: warning
+            cluster: main
+          annotations:
+            summary: "Khaos News story summaries are failing"
+            description: "{{ $value }} failed syntheses and none valid in 2h. Check Ollama (qwen3.6:27b) and worker logs (synthesis.failed)."
+
+        - alert: KhaosPublicLinksGated
+          expr: khaos_public_path_reachable{cluster="main"} == 0
+          for: 20m
+          labels:
+            severity: warning
+            cluster: main
+          annotations:
+            summary: "Khaos News {{ $labels.path }} is behind the login"
+            description: "Share links are being redirected to Authentik. Check the khaos-news proxy provider's skip_path_regex (home-ops forward-auth blueprint) and the outpost."
+
+        - alert: KhaosNotificationsFailing
+          expr: |
+            increase(khaos_notifications_total{cluster="main", outcome="failed"}[1h]) >= 3
+            or increase(khaos_brief_pushes_total{cluster="main", outcome="failed"}[2h]) > 0
+          labels:
+            severity: warning
+            cluster: main
+          annotations:
+            summary: "Khaos News cannot push to ntfy"
+            description: "Follow notifications or the daily brief failed to publish to ntfy-obs.kalde.in."
+
+        - alert: KhaosBackupMissing
+          expr: |
+            time() - kube_cronjob_status_last_successful_time{cluster="main", namespace="default", cronjob="khaos-news-db-backup"} > 26 * 3600
+          for: 30m
+          labels:
+            severity: warning
+            cluster: main
+          annotations:
+            summary: "Khaos News database backup has not succeeded for {{ $value | humanizeDuration }}"
+            description: "The daily pg_dump CronJob (default/khaos-news-db-backup) has not completed in over 26 hours. Check the NAS mount and job logs."

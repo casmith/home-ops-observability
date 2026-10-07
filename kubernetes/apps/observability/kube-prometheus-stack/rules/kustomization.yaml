@@ -6,3 +6,4 @@ resources:
   - ./vm-alerts.yaml
   - ./persistentvolume-alerts.yaml
   - ./pod-alerts.yaml
+  - ./khaos-news-alerts.yaml
